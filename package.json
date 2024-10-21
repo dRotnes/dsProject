@@ -1,0 +1,37 @@
+{
+  "name": "dsproject",
+  "version": "1.0.0",
+  "description": "",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo 'no test script'",
+    "start": "node dist/app.js",
+    "watch": "nodemon dist/app.js",
+    "build": "tsc",
+    "lint": "eslint .",
+    "lint:fix":"eslint . --fix"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dRotnes/dsProject.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/dRotnes/dsProject/issues"
+  },
+  "homepage": "https://github.com/dRotnes/dsProject#readme",
+  "devDependencies": {
+    "@eslint/js": "^9.13.0",
+    "@types/node": "^22.7.7",
+    "eslint": "^8.57.1",
+    "eslint-config-standard": "^17.1.0",
+    "eslint-plugin-import": "^2.31.0",
+    "eslint-plugin-n": "^16.6.2",
+    "eslint-plugin-promise": "^6.6.0",
+    "globals": "^15.11.0",
+    "nodemon": "^3.1.7",
+    "typescript": "^5.6.3",
+    "typescript-eslint": "^8.10.0"
+  }
+}

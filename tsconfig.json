@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "target": "es6", // or ES6/ES2015, depending on your needs
+    "module": "commonjs", // or "CommonJS" if you're not using ES modules
+    "outDir": "dist", // Ensure this points to your output directory
+    "rootDir": "src", // Set your source root
+    "strict": true, // Enable strict type checking
+    "esModuleInterop": true // Allows default imports from CommonJS modules
+  },
+  "include": [
+    "src/**/*.ts" // Adjust to the correct path of your TypeScript files
+  ],
+  "exclude": [
+    "node_modules", // Don't compile node_modules
+    "dist" // Exclude the output directory to avoid conflicts
+  ]
+}
