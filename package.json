@@ -4,12 +4,9 @@
   "description": "",
   "main": "app.js",
   "scripts": {
-    "test": "echo 'no test script'",
-    "start": "node dist/app.js",
-    "watch": "nodemon dist/app.js",
-    "build": "tsc",
-    "lint": "eslint .",
-    "lint:fix":"eslint . --fix"
+    "start": "node app.js",
+    "watch": "nodemon app.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
     "type": "git",
@@ -22,18 +19,6 @@
   },
   "homepage": "https://github.com/dRotnes/dsProject#readme",
   "dependencies": {
-    "@types/node": "^22.7.7"
-  },
-  "devDependencies": {
-    "@eslint/js": "^9.13.0",
-    "eslint": "^8.57.1",
-    "eslint-config-standard": "^17.1.0",
-    "eslint-plugin-import": "^2.31.0",
-    "eslint-plugin-n": "^16.6.2",
-    "eslint-plugin-promise": "^6.6.0",
-    "globals": "^15.11.0",
-    "nodemon": "^3.1.7",
-    "typescript": "^5.6.3",
-    "typescript-eslint": "^8.10.0"
+    "nodemon": "^3.1.7"
   }
 }
