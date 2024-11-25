@@ -1,126 +1,195 @@
 const net = require('net');
+const { Worker } = require('worker_threads');
 const process = require('process');
 
-// Poisson process generation and addition to queue. 
+// The requests queue.
 const queue = [];
+// The flag whether we hold the token or not.
 let token = false;
-function getPoissonDelay(lambda) {
-    return -Math.log(1.0 - Math.random()) / lambda;
-}
+// Peer and server sockets.
+let peerSocket;
+let serverSocket;
 
-function generateRequests(lambda) {
-    // Continue generating requests even if token is not yet received.
-    const delay = getPoissonDelay(lambda); // lambda = 4 events per minute
-    setTimeout(() => {
-        const operation = getRandomOperation();
-        const { number1, number2 } = getRandomArguments();
-        // While with the token, don't create new requests, but schedule for next iteration.
-        if(!token) queue.push(JSON.stringify({ operation, number1, number2 }));
-        generateRequests(lambda); // Continue scheduling the next request
-    }, delay * 1000); // Convert delay to milliseconds
-}
+/**
+ * Sets up a persistent connection to the specified ip and port.
+ * 
+ * @param {string} ip             - IP address.
+ * @param {number} port           - Port.
+ * @param {string} name           - Name of the socket for logging purposes.
+ * @param {function} onData       - Callback to handle incoming data.
+ * @returns {Promise<net.Socket>} - The connected socket.
+ */
+function setupPersistentSocket(ip, port, name, onData) {
+    return new Promise((resolve, reject) => {
+        const socket = new net.Socket();
 
-function getRandomOperation() {
-    const operations = ['add', 'sub', 'mul', 'div'];
-    return operations[Math.floor(Math.random() * operations.length)];
-}
-
-function getRandomArguments() {
-    return { number1: Math.floor(Math.random() * 100), number2: Math.floor(Math.random() * 100) };
-}
-
-// Function to send all commands in the queue to the server
-function sendCommandsToServer() {
-    if(!token) return;
-    if (queue.length === 0) {
-        console.log('----- NOTHING TO SEND, PASSING TOKEN -----');
-        // Add delay before sending token
-        sendTokenWithDelay(nextPeerIp, nextPeerPort);
-        return;
-    }  
-
-    const socket = new net.Socket(); // Create a new TCP socket
-    let responses = []; // Store all responses
-
-    // Function to send a single command and wait for its response
-    function sendCommand(command) {
-        return new Promise((resolve, reject) => {
-            socket.write(command, (err) => {
-                if (err) {
-                    reject(err); // Reject if there's an error while writing the command
-                } else {
-                    console.log('----- SENDING TO SERVER -----');
-                    console.log(command);
-                }
-            });
-
-            socket.once('data', (data) => {
-                const { success, result, message } = JSON.parse(data.toString());
-                if (success) console.log('Result: ', result);
-                else console.log('Error: ', message);
-                resolve(); // Resolve the promise once we get a response
-            });
+        // Connect to passed port and IP.
+        socket.connect(port, ip, () => {
+            console.log(`${name} connected to ${ip}:${port}`);
+            resolve(socket);
         });
+
+        // Handle data according to passed data handling function.
+        socket.on('data', onData);
+
+        // Handle error. Try to reconnect as many times as possible.
+        socket.on('error', async (err) => {
+            console.error(`${name} error: ${err.message}`);
+            try {
+                reconnectedSocket = await reconnectSocket(ip, port, name, onData); 
+                resolve(reconnectedSocket);
+            }
+            catch (error) {
+                console.error(`${name} failed to reconnect: ${reconnectError.message}`);
+            }
+        });
+
+        // // Handle when connection is unexpectedly closed.
+        // socket.on('close', async () => {
+        //     console.log(`${name} closed. Attempting to reconnect...`);
+        //     try {
+        //         reconnectedSocket = await reconnectSocket(ip, port, name, onData); 
+        //         resolve(reconnectedSocket);
+        //     }
+        //     catch (error) {
+        //         console.error(`${name} failed to reconnect: ${reconnectError.message}`);
+        //     }
+        // });
+    });
+}
+
+/**
+ * Reconnects socket.
+ * 
+ * @param {string} ip             - IP address.
+ * @param {number} port           - Port.
+ * @param {string} name           - Name of the socket connection for logging purposes.
+ * @param {function} onData       - Callback to handle incoming data.
+ * @returns {Promise<net.Socket>} - The reconnected socket.
+ */
+function reconnectSocket(ip, port, name, onData) {
+    return new Promise((resolve) => {
+        const retryDelay = 500;
+        const attemptReconnection = () => {
+            console.log(`${name} attempting to reconnect to ${ip}:${port}...`);
+            const socket = new net.Socket();
+
+            // Connect to passed port and IP.
+            socket.connect(port, ip, () => {
+                console.log(`${name} reconnected to ${ip}:${port}`);
+                resolve(socket);
+            });
+
+            // Handle data according to passed data handling function.
+            socket.on('data', onData);
+
+            // Handle error. Try to reconnect as many times as possible.
+            socket.on('error', () => {
+                console.log(`${name} retrying connection in ${retryDelay / 1000} seconds...`);
+                setTimeout(attemptReconnection, retryDelay);
+            });
+        };
+
+        attemptReconnection();
+    });
+}
+
+/**
+ * Handles token passing logic.
+ */
+async function sendToken() {
+    if (!peerSocket || peerSocket.destroyed) {
+        console.error('Peer socket is unavailable. Reconnecting...');
+        peerSocket = await setupPersistentSocket(nextPeerIp, nextPeerPort, 'PeerSocket', handlePeerSocketData);
+    }
+    peerSocket.write('TOKEN');
+    token = false;
+}
+
+/**
+ * Handles data received from the peer socket.
+ * 
+ * @param {Buffer} data - Data received from the peer.
+ */
+function handlePeerSocketData(data) {
+    const message = data.toString().trim();
+    if (message === 'TOKEN') {
+        token = true;
+        sendCommandsToServer();
+    }
+}
+
+/**
+ * Sends commands to the server via the persistent server socket.
+ */
+async function sendCommandsToServer() {
+    if (!serverSocket || serverSocket.destroyed) {
+        console.error('Server socket is unavailable. Reconnecting...');
+        serverSocket = await setupPersistentSocket('localhost', 3000, 'ServerSocket', handleServerSocketData);
     }
 
-    // Open the socket and start sending commands
-    socket.connect(3000, 'localhost', async () => {
-
-        // Send commands one by one
-        try {
-            while (queue.length > 0) {
-                const command = queue.shift(); // Get and remove the first command in the queue
-                await sendCommand(command); // Wait for the response before sending the next command
-            }
-
-            socket.end(); // Close the socket after sending all commands
-            console.log('----- ALL COMMANDS SENT -----');
-            sendTokenWithDelay(nextPeerIp, nextPeerPort);  // Add delay before sending token
-
-        } catch (error) {
-            console.error('Error sending commands:', error);
+    try {
+        while (queue.length > 0) {
+            const command = queue.shift();
+            await sendCommand(serverSocket, command);
         }
-    });
+        sendToken();
+    } catch (err) {
+        console.error('Error sending commands to server:', err.message);
+    }
+}
 
-    // Handle socket errors
-    socket.on('error', (err) => {
-        // console.error('Socket error:', err);
-    });
+/**
+ * Handles data received from the server socket.
+ * 
+ * @param {Buffer} data - Data received from the server.
+ */
+function handleServerSocketData(data) {
+    const { success, result, message } = JSON.parse(data.toString());
+    if (success) console.log('Result:', result);
+    else console.log('Error:', message);
+}
 
-    // Handle socket close event
-    socket.on('close', () => {
+/**
+ * Sends a single command and waits for its response.
+ * 
+ * @param {net.Socket} socket - The socket to send the command.
+ * @param {string} command - The command.
+ * @returns {Promise<void>}
+ */
+function sendCommand(socket, command) {
+    return new Promise((resolve, reject) => {
+        socket.write(command, (err) => {
+            if (err) return reject(err);
+        });
+
+        socket.once('data', () => resolve());
     });
 }
 
-// Server setup function to listen for the token from another peer
+/**
+ * Starts the server to accept incoming connections from other peers.
+ * 
+ * @param {string} ipAddress - IP address of the current peer.
+ * @param {number} port - Port of the current peer.
+ */
 function startPeerServer(ipAddress, port) {
     const server = net.createServer((clientSocket) => {
-        const clientAddress = clientSocket.remoteAddress;
-        const clientPort = clientSocket.remotePort;
-
-        // Handle client messages
         clientSocket.on('data', (data) => {
             const message = data.toString().trim();
-            // console.log(`Message from peer: ${message}`);
-
             if (message === 'TOKEN') {
-                console.log('----- TOKEN RECEIVED -----');
                 token = true;
-                sendCommandsToServer();  // Start sending requests once the token is received
+                sendCommandsToServer();
             }
-        });
-
-        // Handle client disconnect
-        clientSocket.on('end', () => {
         });
 
         clientSocket.on('error', (err) => {
-            console.error(`Error with client ${clientAddress}:${clientPort}:`, err.message);
+            console.error('Client socket error:', err.message);
         });
     });
 
     server.listen(port, ipAddress, () => {
-        console.log(`----- SERVER RUNNING ON ${ipAddress}:${port} -----`);
+        console.log(`Server running on ${ipAddress}:${port}`);
     });
 
     server.on('error', (err) => {
@@ -128,36 +197,33 @@ function startPeerServer(ipAddress, port) {
     });
 }
 
-// Function to send the token with a delay to slow down token passing
-function sendTokenWithDelay(peerIp, peerPort) {
-    console.log('----- WAITING BEFORE SENDING TOKEN -----');
-    setTimeout(() => {
-        sendToken(peerIp, peerPort);
-    }, 2000);
-}
+/**
+ * Starts the worker for request generation.
+ * 
+ * @param {number} lambda - Rate of request generation.
+ */
+function startRequestGenerator(lambda) {
+    const worker = new Worker('./requestGeneratorWorker.js');
 
-// Function to send the token to another peer
-function sendToken(peerIp, peerPort) {
-    const socket = new net.Socket(); // Create a new TCP socket
-
-    // Connect to the other peer and send the token
-    socket.connect(peerPort, peerIp, () => {
-        console.log('----- SENDING TOKEN TO PEER -----');
-        socket.write('TOKEN\n'); // Send the token to the peer
-        token = false;  // Reset token state
-        socket.end(); // Close the socket after sending the token
+    // Receive generated requests from the worker
+    worker.on('message', (request) => {
+        queue.push(JSON.stringify(request));
     });
 
-    // Handle socket errors
-    socket.on('error', (err) => {
-        sendTokenWithDelay(peerIp, peerPort);
-        // console.error('Error sending token:', err);
+    // Start generating requests
+    worker.postMessage(lambda);
+
+    worker.on('error', (err) => {
+        console.error('Worker error:', err.message);
     });
 
-    // Handle socket close event
-    socket.on('close', () => {
+    worker.on('exit', (code) => {
+        if (code !== 0) {
+            console.error(`Worker stopped with exit code ${code}`);
+        }
     });
 }
+
 
 // Main execution
 if (process.argv.length < 6) {
@@ -167,5 +233,11 @@ if (process.argv.length < 6) {
 
 const [ipAddress, port, nextPeerIp, nextPeerPort] = process.argv.slice(2);
 
-// Start the peer server.
-Promise.all([startPeerServer(ipAddress, parseInt(port)), generateRequests(4 / 60)]);
+( async () => {
+    [_, serverSocket, peerSocket, _] = await Promise.all([
+        startPeerServer(ipAddress, parseInt(port)),
+        setupPersistentSocket('localhost', 3000, 'ServerSocket', handleServerSocketData),
+        setupPersistentSocket(nextPeerIp, parseInt(nextPeerPort), 'PeerSocket', handlePeerSocketData),
+        startRequestGenerator(4 / 60)
+    ]);
+})();
