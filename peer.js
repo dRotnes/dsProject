@@ -226,18 +226,18 @@ function startRequestGenerator(lambda) {
 
 
 // Main execution
-if (process.argv.length < 6) {
-    console.error('Usage: node yourScript.js <ipAddress> <port> <nextPeerIp> <nextPeerPort>');
+if (process.argv.length < 4) {
+    console.error('Usage: node yourScript.js <nextPeerIp> <serverIp>');
     process.exit(1);
 }
 
-const [ipAddress, port, nextPeerIp, nextPeerPort] = process.argv.slice(2);
+const [nextPeerIp, serverIp] = process.argv.slice(2);
 
 ( async () => {
     [_, serverSocket, peerSocket, _] = await Promise.all([
-        startPeerServer(ipAddress, parseInt(port)),
-        setupPersistentSocket('localhost', 3000, 'ServerSocket', handleServerSocketData),
-        setupPersistentSocket(nextPeerIp, parseInt(nextPeerPort), 'PeerSocket', handlePeerSocketData),
+        startPeerServer('localhost', 3000),
+        setupPersistentSocket(serverIp, 3030, 'ServerSocket', handleServerSocketData),
+        setupPersistentSocket(nextPeerIp, 3000, 'PeerSocket', handlePeerSocketData),
         startRequestGenerator(4 / 60)
     ]);
 })();
