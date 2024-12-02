@@ -3,12 +3,7 @@ const { Worker } = require('worker_threads');
 const process = require('process');
 
 // The requests queue.
-const queue = [];
-// The flag whether we hold the token or not.
-let token = false;
-// Peer and server sockets.
-let peerSocket;
-let serverSocket;
+const connectedPeers = {};
 
 /**
  * Sets up a persistent connection to the specified ip and port.
@@ -94,61 +89,6 @@ function reconnectSocket(ip, port, name, onData) {
     });
 }
 
-/**
- * Handles token passing logic.
- */
-async function sendToken() {
-    if (!peerSocket || peerSocket.destroyed) {
-        console.error('Peer socket is unavailable. Reconnecting...');
-        peerSocket = await setupPersistentSocket(nextPeerIp, nextPeerPort, 'PeerSocket', handlePeerSocketData);
-    }
-    peerSocket.write('TOKEN');
-    token = false;
-}
-
-/**
- * Handles data received from the peer socket.
- * 
- * @param {Buffer} data - Data received from the peer.
- */
-function handlePeerSocketData(data) {
-    const message = data.toString().trim();
-    if (message === 'TOKEN') {
-        token = true;
-        sendCommandsToServer();
-    }
-}
-
-/**
- * Sends commands to the server via the persistent server socket.
- */
-async function sendCommandsToServer() {
-    if (!serverSocket || serverSocket.destroyed) {
-        console.error('Server socket is unavailable. Reconnecting...');
-        serverSocket = await setupPersistentSocket('localhost', 3000, 'ServerSocket', handleServerSocketData);
-    }
-
-    try {
-        while (queue.length > 0) {
-            const command = queue.shift();
-            await sendCommand(serverSocket, command);
-        }
-        sendToken();
-    } catch (err) {
-        console.error('Error sending commands to server:', err.message);
-    }
-}
-
-/**
- * Handles data received from the server socket.
- * 
- * @param {Buffer} data - Data received from the server.
- */
-function handleServerSocketData(data) {
-    const { success, result, message } = JSON.parse(data.toString());
-    if (success) console.log('Result:', result);
-    else console.log('Error:', message);
-}
 
 /**
  * Sends a single command and waits for its response.

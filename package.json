@@ -2,10 +2,10 @@
   "name": "dsproject",
   "version": "1.0.0",
   "description": "",
-  "main": "app.js",
+  "main": "tokenRing/app.js",
   "scripts": {
-    "start": "node app.js",
-    "watch": "nodemon app.js",
+    "start": "node ./tokenRing/app.js",
+    "watch": "nodemon ./tokenRing/app.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
