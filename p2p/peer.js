@@ -1,126 +1,29 @@
 const net = require('net');
-const { Worker } = require('worker_threads');
 const process = require('process');
 
-// The requests queue.
-const connectedPeers = {};
+// Stores peer data { peerIp: timestamp }
+const peerMap = new Map();
+// Stores peers connected to this peer
+const socketArray = [];
+// Poisson distribution parameter
+const lambda = 4 / 60;
+// Time-to-live for each peer entry
+const entryTTL = 60000;
 
 /**
- * Sets up a persistent connection to the specified ip and port.
- * 
- * @param {string} ip             - IP address.
- * @param {number} port           - Port.
- * @param {string} name           - Name of the socket for logging purposes.
- * @param {function} onData       - Callback to handle incoming data.
- * @returns {Promise<net.Socket>} - The connected socket.
- */
-function setupPersistentSocket(ip, port, name, onData) {
-    return new Promise((resolve, reject) => {
-        const socket = new net.Socket();
-
-        // Connect to passed port and IP.
-        socket.connect(port, ip, () => {
-            console.log(`${name} connected to ${ip}:${port}`);
-            resolve(socket);
-        });
-
-        // Handle data according to passed data handling function.
-        socket.on('data', onData);
-
-        // Handle error. Try to reconnect as many times as possible.
-        socket.on('error', async (err) => {
-            console.error(`${name} error: ${err.message}`);
-            try {
-                reconnectedSocket = await reconnectSocket(ip, port, name, onData); 
-                resolve(reconnectedSocket);
-            }
-            catch (error) {
-                console.error(`${name} failed to reconnect: ${reconnectError.message}`);
-            }
-        });
-
-        // // Handle when connection is unexpectedly closed.
-        // socket.on('close', async () => {
-        //     console.log(`${name} closed. Attempting to reconnect...`);
-        //     try {
-        //         reconnectedSocket = await reconnectSocket(ip, port, name, onData); 
-        //         resolve(reconnectedSocket);
-        //     }
-        //     catch (error) {
-        //         console.error(`${name} failed to reconnect: ${reconnectError.message}`);
-        //     }
-        // });
-    });
-}
-
-/**
- * Reconnects socket.
- * 
- * @param {string} ip             - IP address.
- * @param {number} port           - Port.
- * @param {string} name           - Name of the socket connection for logging purposes.
- * @param {function} onData       - Callback to handle incoming data.
- * @returns {Promise<net.Socket>} - The reconnected socket.
- */
-function reconnectSocket(ip, port, name, onData) {
-    return new Promise((resolve) => {
-        const retryDelay = 500;
-        const attemptReconnection = () => {
-            console.log(`${name} attempting to reconnect to ${ip}:${port}...`);
-            const socket = new net.Socket();
-
-            // Connect to passed port and IP.
-            socket.connect(port, ip, () => {
-                console.log(`${name} reconnected to ${ip}:${port}`);
-                resolve(socket);
-            });
-
-            // Handle data according to passed data handling function.
-            socket.on('data', onData);
-
-            // Handle error. Try to reconnect as many times as possible.
-            socket.on('error', () => {
-                console.log(`${name} retrying connection in ${retryDelay / 1000} seconds...`);
-                setTimeout(attemptReconnection, retryDelay);
-            });
-        };
-
-        attemptReconnection();
-    });
-}
-
-
-/**
- * Sends a single command and waits for its response.
- * 
- * @param {net.Socket} socket - The socket to send the command.
- * @param {string} command - The command.
- * @returns {Promise<void>}
- */
-function sendCommand(socket, command) {
-    return new Promise((resolve, reject) => {
-        socket.write(command, (err) => {
-            if (err) return reject(err);
-        });
-
-        socket.once('data', () => resolve());
-    });
-}
-
-/**
- * Starts the server to accept incoming connections from other peers.
- * 
+ * Sets up a server to accept incoming peer connections.
  * @param {string} ipAddress - IP address of the current peer.
  * @param {number} port - Port of the current peer.
  */
 function startPeerServer(ipAddress, port) {
     const server = net.createServer((clientSocket) => {
-        clientSocket.on('data', (data) => {
+        // This makes sense when we have different machines. It's not possible when I have one machine because the socket and server Ip.
+        const connectionIp = clientSocket.remoteAddress;
+        console.log(`New Connection: ${connectionIp}`);
+        
+        clientSocket.on('data', async (data) => {
             const message = data.toString().trim();
-            if (message === 'TOKEN') {
-                token = true;
-                sendCommandsToServer();
-            }
+            handleIncomingMessage(message);
         });
 
         clientSocket.on('error', (err) => {
@@ -135,49 +38,143 @@ function startPeerServer(ipAddress, port) {
     server.on('error', (err) => {
         console.error('Server error:', err.message);
     });
+
 }
 
 /**
- * Starts the worker for request generation.
- * 
- * @param {number} lambda - Rate of request generation.
+ * Handles incoming messages to register peers and update the map.
+ * @param {string} message - The message containing peer data.
  */
-function startRequestGenerator(lambda) {
-    const worker = new Worker('./requestGeneratorWorker.js');
+function handleIncomingMessage(message) {
+    try {
+        const receivedData = JSON.parse(message);
+        console.log(receivedData);
+        receivedData.forEach(([peerPort, timestamp]) => {
+            // Update the map only if the new timestamp is more recent.
+            peerMap.set(peerPort.toString(), Math.max(peerMap.get(peerPort) || 0, timestamp));
+        });
+        // Delete the expired peers.
+        deleteExpiredPeers();
+        console.log(`Updated peer map: ${peerMap.size} total nodes (${Array.from(peerMap.entries())})`);
+    } catch (error) {
+        console.error('Error processing incoming message:', error.message);
+    }
+}
 
-    // Receive generated requests from the worker
-    worker.on('message', (request) => {
-        queue.push(JSON.stringify(request));
+/**
+ * Disseminates the current peer map to a connected peer.
+ * @param {net.Socket} socket - The socket to send the map.
+*/
+function disseminatePeerMap() {
+    // Set your own entry.
+    peerMap.set(serverPort.toString(), Date.now());
+    // Delete the expired peers.
+    deleteExpiredPeers();
+    const validEntries = Array.from(peerMap.entries()).filter(([_, timestamp]) => {
+        // Filter expired entries
+        return Date.now() - timestamp <= entryTTL;
     });
+    
+    // Send only valid entries as JSON.
+    const message = JSON.stringify(validEntries);
+    // Send it to every peer connected to itself.
+    socketArray.forEach((socket) => socket.write(message));
+}
 
-    // Start generating requests
-    worker.postMessage(lambda);
+/**
+ * Periodically updates the peer map using Anti-Entropy.
+ */
+function startAntiEntropy() {
+    const delay = getPoissonDelay(lambda);
+    setTimeout(() => {
+        disseminatePeerMap();
+        const delay = getPoissonDelay(lambda);
+        console.log(`Disseminated peer map: ${Array.from(peerMap.keys())}`);
+        startAntiEntropy();
+        // Recalculate delay for the next cycle
+    }, delay * 1000);
 
-    worker.on('error', (err) => {
-        console.error('Worker error:', err.message);
-    });
+    // update(); // Start the first dissemination cycle
+}
 
-    worker.on('exit', (code) => {
-        if (code !== 0) {
-            console.error(`Worker stopped with exit code ${code}`);
+/**
+ * Deletes expired peers (timestamp < TTL).
+ */
+function deleteExpiredPeers() {
+    peerMap.forEach((timestamp, peer) => {
+        if (Date.now() - timestamp > entryTTL && peer != serverPort.toString()) {
+            console.log(`Deleted peer: ${peer}`);
+            peerMap.delete(peer);
         }
     });
 }
 
+/**
+ * Sets up a persistent connection to the specified peer with retry logic.
+ * @param {string} peerIp - IP address of the peer.
+ * @param {number} peerPort - Port of the peer.
+ * @param {string} name - Name of the connection.
+ * @returns {Promise<net.Socket>} - The connected socket.
+ */
+async function setupPersistentSocket(peerIp, peerPort, name) {
+    return new Promise((resolve, reject) => {
+        const connectToPeer = () => {
+            const socket = new net.Socket();
+            socket.connect(peerPort, peerIp, () => {
+                console.log(`${name} connected to ${peerIp}:${peerPort}`);
+                // // Set the peer that is directly connected.
+                // peerMap.set(peerPort.toString(), Date.now());
+                resolve(socket);
 
-// Main execution
+                socket.on('data', (data) => {
+                    handleIncomingMessage(data.toString());
+                });
+
+                socket.on('error', (err) => {
+                    console.error(`${name} error: ${err.message}`);
+                });
+
+                socket.on('close', () => {
+                    console.log(`${name} connection closed`);
+                });
+            });
+
+            socket.on('error', (err) => {
+                console.error(`${name} error: ${err.message}`);
+                console.log(`Retrying connection to ${peerIp}:${peerPort} in 3 seconds...`);
+                setTimeout(connectToPeer, 3000); // Retry connection
+            });
+        };
+
+        connectToPeer();
+    });
+}
+
+/**
+ * Returns the delay to apply when creating the requests.
+ * @param {number} lambda - The lambda to use as guideline.
+ * @returns {number}
+ */
+function getPoissonDelay(lambda) {
+    return -Math.log(1.0 - Math.random()) / lambda;
+}
+
+// Main Execution
 if (process.argv.length < 4) {
-    console.error('Usage: node yourScript.js <nextPeerIp> <serverIp>');
+    console.error('Usage: node yourScript.js <selfPort> <peersPorts>');
     process.exit(1);
 }
 
-const [nextPeerIp, serverIp] = process.argv.slice(2);
+const serverPort = process.argv.slice(2)[0];
+const peersPorts = process.argv.slice(3);
 
-( async () => {
-    [_, serverSocket, peerSocket, _] = await Promise.all([
-        startPeerServer('localhost', 3000),
-        setupPersistentSocket(serverIp, 3030, 'ServerSocket', handleServerSocketData),
-        setupPersistentSocket(nextPeerIp, 3000, 'PeerSocket', handlePeerSocketData),
-        startRequestGenerator(4 / 60)
-    ]);
+(async () => {
+    startPeerServer('localhost', parseInt(serverPort));
+
+    // Setup persistent connections to other peers.
+    for (const peer of peersPorts) {
+        socketArray.push(await setupPersistentSocket('localhost', parseInt(peer), `PeerSocket`));
+    }
+
+    startAntiEntropy();
 })();
