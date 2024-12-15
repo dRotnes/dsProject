@@ -61,39 +61,53 @@ function startPeerServer(ipAddress, port) {
  * @param {number} peerPort - Port of the peer.
  * @returns {Promise<void>} - Resolves when the connection is established.
  */
-async function setupPersistentSocket(peerIp, peerPort) {
-    return new Promise((resolve) => {
+async function setupPersistentSocket(peerIp, peerPort, retryDelay = 2000, maxRetries = 5) {
+    return new Promise((resolve, reject) => {
         // Check if a connection to this peer already exists
         if (socketMap.has(peerIp)) {
             console.log(`Existing connection to ${peerIp} found. Reusing socket.`);
             return resolve();
         }
 
-        const socket = new net.Socket();
-        socket.connect(peerPort, peerIp, () => {
-            console.log(`Connected to ${peerIp}:${peerPort}`);
-            socketMap.set(peerIp, socket);
+        let retries = 0;
 
-            socket.on('data', (data) => {
-                const message = data.toString().trim();
-                handleIncomingMessage(message);
+        const attemptConnection = () => {
+            if (retries > maxRetries) {
+                console.error(`Max retries reached for ${peerIp}. Giving up.`);
+                return reject(new Error(`Failed to connect to ${peerIp}`));
+            }
+
+            const socket = new net.Socket();
+
+            socket.connect(peerPort, peerIp, () => {
+                console.log(`Successfully connected to ${peerIp}:${peerPort}`);
+                socketMap.set(peerIp, socket);
+
+                socket.on('data', (data) => {
+                    const message = data.toString().trim();
+                    handleIncomingMessage(message);
+                });
+
+                socket.on('error', (err) => {
+                    console.error(`Socket error for ${peerIp}: ${err.message}`);
+                });
+
+                socket.on('close', () => {
+                    console.log(`Connection to ${peerIp} closed.`);
+                    socketMap.delete(peerIp);
+                });
+
+                resolve(); // Connection established, resolve the Promise
             });
 
             socket.on('error', (err) => {
-                console.error(`Socket error for ${peerIp}: ${err.message}`);
+                retries++;
+                console.error(`Failed to connect to ${peerIp}: ${err.message}. Retrying in ${retryDelay}ms...`);
+                setTimeout(attemptConnection, retryDelay);
             });
+        };
 
-            socket.on('close', () => {
-                console.log(`Connection to ${peerIp} closed.`);
-                socketMap.delete(peerIp);
-            });
-
-            resolve();
-        });
-
-        socket.on('error', (err) => {
-            console.error(`Failed to connect to ${peerIp}: ${err.message}`);
-        });
+        attemptConnection(); // Start the connection attempt
     });
 }
 
