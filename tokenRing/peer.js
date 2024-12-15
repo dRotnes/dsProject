@@ -38,7 +38,7 @@ function setupPersistentSocket(ip, port, name, onData) {
             socket.on('error', async (err) => {
                 if (!shuttingDown) {
                     console.error(`${name} error: ${err.message}. Attempting to connect again in ${retryDelay / 1000} seconds.`);
-                    setTimeout(attemptReconnection, retryDelay);
+                    setTimeout(attemptConnection, retryDelay);
                 }
             });
         }
