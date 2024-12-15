@@ -1,5 +1,6 @@
 const net = require('net');
 const process = require('process');
+const os = require('os');
 
 // Stores peer data { peerIp: timestamp }
 const peerMap = new Map();
