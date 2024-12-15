@@ -21,31 +21,15 @@ let server;
 function startPeerServer(ipAddress, port) {
     const server = net.createServer((clientSocket) => {
         const connectionIp = clientSocket.remoteAddress;
-        console.log(`New connection from: ${connectionIp}`);
 
         // Check if a connection to this peer already exists. If not, add this socket to the neightbor Map
         if (!neighborsMap.has(connectionIp)) {
-            console.log(`Adding new socket for ${connectionIp}`);
+            console.log(`ADDED NEIGHBOR: ${connectionIp}`);
             neighborsMap.set(connectionIp, clientSocket);
         } else {
-            console.log(`Existing socket for ${connectionIp} found. Closing duplicate.`);
             clientSocket.destroy();
             return;
         }
-
-        clientSocket.on('data', (data) => {
-            const message = data.toString().trim();
-            handleIncomingMessage(message);
-        });
-
-        clientSocket.on('error', (err) => {
-            console.error('Client socket error:', err.message);
-        });
-
-        clientSocket.on('close', () => {
-            console.log(`Connection to ${connectionIp} closed.`);
-            neighborsMap.delete(connectionIp);
-        });
     });
 
     server.listen(port, ipAddress, () => {
