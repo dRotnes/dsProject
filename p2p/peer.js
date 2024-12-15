@@ -7,7 +7,7 @@ const peerMap = new Map();
 // Stores peers connected to this peer by IP address
 const neighborsMap = new Map();
 // Poisson distribution parameter
-const lambda = 4 / 60;
+const lambda = 2 / 60;
 // Time-to-live for each peer entry
 const entryTTL = 60000;
 
