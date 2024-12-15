@@ -118,14 +118,13 @@ async function setupPersistentSocket(peerIp, peerPort, retryDelay = 2000, maxRet
 function handleIncomingMessage(message) {
     try {
         const receivedData = JSON.parse(message);
-        console.log(`Received data: ${receivedData}`);
         receivedData.forEach(([peerIp, timestamp]) => {
             // Update the map only if the new timestamp is more recent.
             peerMap.set(peerIp.toString(), Math.max(peerMap.get(peerIp) || 0, timestamp));
         });
         // Delete the expired peers.
         deleteExpiredPeers();
-        console.log(`Updated peer map: ${peerMap.size} total nodes (${Array.from(peerMap.entries())})`);
+        console.log(`\nUpdated peer map: ${peerMap.size} total nodes (${Array.from(peerMap.entries())})`);
     } catch (error) {
         console.error('Error processing incoming message:', error.message);
     }
