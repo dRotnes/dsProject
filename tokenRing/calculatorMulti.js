@@ -75,9 +75,8 @@ function processCommand(command) {
 }
 
 // Main execution
-if (process.argv.length < 3) {
-    console.error('Usage: node calculatorServer.js <ipAddress>');
+if (process.argv.length < 2) {
+    console.error('Usage: node calculatorServer.js');
     process.exit(1);
 }
-const ipAddress = process.argv[2];
-startServer(ipAddress, 3000);
+startServer('localhost', 3030);

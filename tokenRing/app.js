@@ -24,4 +24,4 @@ function sendToken(peerIp, peerPort) {
 }
 
 // Send the token to peer running on port 3001
-sendToken('127.0.0.1', 3001);
+sendToken('localhost', 3000);
