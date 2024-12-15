@@ -44,17 +44,12 @@ function setupPersistentSocket(ip, port, name, onData) {
             }
         });
 
-        // // Handle when connection is unexpectedly closed.
-        // socket.on('close', async () => {
-        //     console.log(`${name} closed. Attempting to reconnect...`);
-        //     try {
-        //         reconnectedSocket = await reconnectSocket(ip, port, name, onData); 
-        //         resolve(reconnectedSocket);
-        //     }
-        //     catch (error) {
-        //         console.error(`${name} failed to reconnect: ${reconnectError.message}`);
-        //     }
-        // });
+        // Handle when connection is unexpectedly closed.
+        socket.on('close', async () => {
+            console.log('Ending gracefully');
+            peerSocket.close();
+            process.exit(1);
+        });
     });
 }
 

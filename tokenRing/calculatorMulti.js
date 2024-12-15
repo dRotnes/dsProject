@@ -11,6 +11,7 @@ function startServer(ipAddress, port) {
         // Handle client messages
         clientSocket.on('data', (data) => {
             const command = JSON.parse(data.toString());
+            console.log(`Received command from: ${clientAddress}: ${command.operation} ${command.number1} ${command.number2}`)
             const result = processCommand(command);
             clientSocket.write(result);
         });
