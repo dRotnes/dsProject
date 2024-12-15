@@ -44,21 +44,21 @@ function setupPersistentSocket(ip, port, name, onData) {
             }
         });
 
-        // Handle when connection is unexpectedly closed.
-        socket.on('close', async () => {
-            if (port === 3000 && peerSocket) {
-                console.log('Ending gracefully');
-                peerSocket.close();
-                serverSocket.close();
-                process.exit(0);
-            }
-            if (port === 3030 && serverSocket) {
-                console.log('Ending gracefully');
-                serverSocket.close();
-                peerSocket.close();
-                process.exit(0);
-            }
-        });
+        // // Handle when connection is unexpectedly closed.
+        // socket.on('close', async () => {
+        //     if (port === 3000 && peerSocket) {
+        //         console.log('Ending gracefully');
+        //         peerSocket.close();
+        //         serverSocket.close();
+        //         process.exit(0);
+        //     }
+        //     if (port === 3030 && serverSocket) {
+        //         console.log('Ending gracefully');
+        //         serverSocket.close();
+        //         peerSocket.close();
+        //         process.exit(0);
+        //     }
+        // });
     });
 }
 
