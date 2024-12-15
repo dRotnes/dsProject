@@ -186,7 +186,7 @@ function getOwnIP() {
 const selfIpAddress = getOwnIP().toString();
 
 (async () => {
-    startPeerServer('0.0.0.0', parseInt(serverPort));
+    startPeerServer('0.0.0.0', 3000);
 
     // Setup persistent connections to other peers.
     for (const peer of peersIps) {
