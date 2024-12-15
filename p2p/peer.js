@@ -42,7 +42,7 @@ function startPeerServer(ipAddress, port) {
         });
 
         clientSocket.on('close', () => {
-            console.log(`Connection to ${connectionIp} closed.`);
+            console.log(`REMOVED NEIGHBOR: ${connectionIp}`);
             neighborsMap.delete(connectionIp);
         });
     });
