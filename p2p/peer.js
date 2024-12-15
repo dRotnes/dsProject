@@ -72,12 +72,10 @@ async function setupPersistentSocket(peerIp, peerPort, retryDelay = 2000, maxRet
         const attemptConnection = () => {
             // Check if a connection to this peer already exists
             if (neighborsMap.has(peerIp)) {
-                // console.log(`Existing connection to ${peerIp} found. Reusing socket.`);
                 return resolve();
             }
 
             if (retries > maxRetries) {
-                // console.error(`Max retries reached for ${peerIp}. Giving up.`);
                 return reject(new Error(`Failed to connect to ${peerIp}`));
             }
 
@@ -93,25 +91,22 @@ async function setupPersistentSocket(peerIp, peerPort, retryDelay = 2000, maxRet
                 });
 
                 socket.on('error', (err) => {
-                    // console.error(`Socket error for ${peerIp}: ${err.message}`);
                 });
 
                 socket.on('close', () => {
-                    // console.log(`Connection to ${peerIp} closed.`);
                     neighborsMap.delete(peerIp);
                 });
 
-                resolve(); // Connection established, resolve the Promise
+                resolve();
             });
 
             socket.on('error', (err) => {
                 retries++;
-                // console.error(`Failed to connect to ${peerIp}: ${err.message}. Retrying in ${retryDelay}ms...`);
                 setTimeout(attemptConnection, retryDelay);
             });
         };
 
-        attemptConnection(); // Start the connection attempt
+        attemptConnection();
     });
 }
 
