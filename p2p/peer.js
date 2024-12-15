@@ -68,7 +68,7 @@ peersIps.forEach((peer) => {
             let retries = 0;
         
             // If we reach the maximum number of retries. Stop trying to connect.
-            if (retries > maxRetries) {
+            if (retries > 3) {
                 return reject(new Error(`Failed to connect to ${peerIp}`));
             }
             const connectToPeer = () => {
