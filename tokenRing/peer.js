@@ -100,7 +100,7 @@ function reconnectSocket(ip, port, name, onData) {
 async function sendToken() {
     if (!peerSocket || peerSocket.destroyed) {
         console.error('Peer socket is unavailable. Reconnecting...');
-        peerSocket = await setupPersistentSocket(nextPeerIp, nextPeerPort, 'PeerSocket', handlePeerSocketData);
+        peerSocket = await setupPersistentSocket(nextPeerIp, 3000, 'PeerSocket', handlePeerSocketData);
     }
     peerSocket.write('TOKEN');
     token = false;
