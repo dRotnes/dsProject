@@ -9,7 +9,6 @@ let token = false;
 // Peer and server sockets.
 let peerSocket;
 let serverSocket;
-let numberOfRetries = 0;
 
 /**
  * Sets up a persistent connection to the specified ip and port.
@@ -35,6 +34,7 @@ function setupPersistentSocket(ip, port, name, onData) {
 
         // Handle error. Try to reconnect as many times as possible.
         socket.on('error', async (err) => {
+            console.error(`${name} error: ${err.message}`);
             try {
                 reconnectedSocket = await reconnectSocket(ip, port, name, onData); 
                 resolve(reconnectedSocket);
@@ -42,6 +42,11 @@ function setupPersistentSocket(ip, port, name, onData) {
             catch (error) {
                 console.error(`${name} failed to reconnect: ${reconnectError.message}`);
             }
+        });
+
+        // Handle when connection is unexpectedly closed.
+        socket.on('close', async () => {
+            console.log(peerSocket);
         });
     });
 }
@@ -57,8 +62,7 @@ function setupPersistentSocket(ip, port, name, onData) {
  */
 function reconnectSocket(ip, port, name, onData) {
     return new Promise((resolve) => {
-        const retryDelay = 1000;
-        numberOfRetries += 1;
+        const retryDelay = 500;
         const attemptReconnection = () => {
             console.log(`${name} attempting to reconnect to ${ip}:${port}...`);
             const socket = new net.Socket();
@@ -74,10 +78,6 @@ function reconnectSocket(ip, port, name, onData) {
 
             // Handle error. Try to reconnect as many times as possible.
             socket.on('error', () => {
-                if (numberOfRetries >= 4) {
-                    serverSocket.close();
-                    process.exit(1);
-                }   
                 console.log(`${name} retrying connection in ${retryDelay / 1000} seconds...`);
                 setTimeout(attemptReconnection, retryDelay);
             });
