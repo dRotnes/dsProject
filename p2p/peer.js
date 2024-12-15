@@ -67,7 +67,7 @@ const connectToPeer = (peer) => {
 }
 
 // Sockets setup (connections to other peers).
-const attemptConnection = async (peer) => {
+const attemptConnection = (peer) => {
     // Open socket.
     const socket = new net.Socket();
 
