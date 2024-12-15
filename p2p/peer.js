@@ -10,6 +10,8 @@ const neighborsMap = new Map();
 const lambda = 2 / 60;
 // Time-to-live for each peer entry
 const entryTTL = 120000;
+// The Server.
+let server;
 
 /**
  * Sets up a server to accept incoming peer connections.
@@ -53,6 +55,8 @@ function startPeerServer(ipAddress, port) {
     server.on('error', (err) => {
         console.error('Server error:', err.message);
     });
+
+    return server;
 }
 
 /**
@@ -199,6 +203,22 @@ function getOwnIP() {
     return null;
 }
 
+/**
+ * Shuts down and cleans up the resources.
+ */
+function initiateShutdown() {
+    console.log('Shutting Down...');
+
+    if (server) {
+        server.end();
+    }
+
+    setTimeout(() => {
+        console.log('Shutdown complete.');
+        process.exit(0); // Exit the process
+    }, 1000);
+}
+
 // Main Execution
 if (process.argv.length < 3) {
     console.error('Usage: node peer.js <peerIps>');
@@ -208,8 +228,12 @@ if (process.argv.length < 3) {
 const peersIps = process.argv.slice(2);
 const selfIpAddress = getOwnIP();
 
+// Start listening for OS signals for graceful shutdown
+process.on('SIGINT', initiateShutdown);
+process.on('SIGTERM', initiateShutdown);
+
 (async () => {
-    startPeerServer('0.0.0.0', 4000);
+    server = startPeerServer('0.0.0.0', 4000);
 
     // Establish connections to specified peers
     for (const peer of peersIps) {
