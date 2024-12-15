@@ -61,7 +61,7 @@ const attemptConnection = async () => {
     return socket;
 }
 
-
+// Setup sockets.
 peersIps.forEach((peer) => {
     try {
         return new Promise((resolve, reject) => {
@@ -103,6 +103,8 @@ peersIps.forEach((peer) => {
         console.error(`UNAVAILABLE PEER: ${peer}`);
     }
 });
+
+startAntiEntropy();
 
 /**
  * Handles incoming messages to register peers and update the map.
@@ -219,20 +221,3 @@ const selfIpAddress = getOwnIP();
 // Start listening for OS signals for graceful shutdown
 process.on('SIGINT', initiateShutdown);
 process.on('SIGTERM', initiateShutdown);
-
-(async () => {
-    server = startPeerServer('0.0.0.0', 4000);
-
-    // Establish connections to specified peers
-    for (const peer of peersIps) {
-        try {
-            await setupPersistentSocket(peer, 4000);
-        }
-        catch (error) {
-            console.error(`Failed to connect to peer ${peer}. Continuing without it`);
-        }
-    }
-
-    // Periodically disseminate the peer map
-    startAntiEntropy();
-})();
