@@ -82,7 +82,7 @@ function setupPersistentSocket(peerIp, peerPort, retryDelay = 2000, maxRetries =
 
         socket.connect(peerPort, peerIp, () => {
             neighborsMap.set(peerIp, socket);
-            console.log(`ADDED NEIGHBOR: ${peerIP}`);
+            console.log(`ADDED NEIGHBOR: ${peerIp}`);
 
             socket.on('data', (data) => {
                 const message = data.toString().trim();
