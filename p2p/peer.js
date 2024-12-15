@@ -5,7 +5,7 @@ const os = require('os');
 // Stores peer data { peerIp: timestamp }
 const peerMap = new Map();
 // Stores peers connected to this peer by IP address
-const socketMap = new Map();
+const neighborsMap = new Map();
 // Poisson distribution parameter
 const lambda = 4 / 60;
 // Time-to-live for each peer entry
@@ -21,10 +21,10 @@ function startPeerServer(ipAddress, port) {
         const connectionIp = clientSocket.remoteAddress;
         console.log(`New connection from: ${connectionIp}`);
 
-        // Check if a connection to this peer already exists
-        if (!socketMap.has(connectionIp)) {
+        // Check if a connection to this peer already exists. If not, add this socket to the neightbor Map
+        if (!neighborsMap.has(connectionIp)) {
             console.log(`Adding new socket for ${connectionIp}`);
-            socketMap.set(connectionIp, clientSocket);
+            neighborsMap.set(connectionIp, clientSocket);
         } else {
             console.log(`Existing socket for ${connectionIp} found. Closing duplicate.`);
             clientSocket.destroy();
@@ -42,7 +42,7 @@ function startPeerServer(ipAddress, port) {
 
         clientSocket.on('close', () => {
             console.log(`Connection to ${connectionIp} closed.`);
-            socketMap.delete(connectionIp);
+            neighborsMap.delete(connectionIp);
         });
     });
 
@@ -63,15 +63,15 @@ function startPeerServer(ipAddress, port) {
  */
 async function setupPersistentSocket(peerIp, peerPort, retryDelay = 2000, maxRetries = 5) {
     return new Promise((resolve, reject) => {
-        // Check if a connection to this peer already exists
-        if (socketMap.has(peerIp)) {
-            console.log(`Existing connection to ${peerIp} found. Reusing socket.`);
-            return resolve();
-        }
-
         let retries = 0;
 
         const attemptConnection = () => {
+            // Check if a connection to this peer already exists
+            if (neighborsMap.has(peerIp)) {
+                console.log(`Existing connection to ${peerIp} found. Reusing socket.`);
+                return resolve();
+            }
+
             if (retries > maxRetries) {
                 console.error(`Max retries reached for ${peerIp}. Giving up.`);
                 return reject(new Error(`Failed to connect to ${peerIp}`));
@@ -81,7 +81,7 @@ async function setupPersistentSocket(peerIp, peerPort, retryDelay = 2000, maxRet
 
             socket.connect(peerPort, peerIp, () => {
                 console.log(`Successfully connected to ${peerIp}:${peerPort}`);
-                socketMap.set(peerIp, socket);
+                neighborsMap.set(peerIp, socket);
 
                 socket.on('data', (data) => {
                     const message = data.toString().trim();
@@ -94,7 +94,7 @@ async function setupPersistentSocket(peerIp, peerPort, retryDelay = 2000, maxRet
 
                 socket.on('close', () => {
                     console.log(`Connection to ${peerIp} closed.`);
-                    socketMap.delete(peerIp);
+                    neighborsMap.delete(peerIp);
                 });
 
                 resolve(); // Connection established, resolve the Promise
@@ -146,7 +146,7 @@ function disseminatePeerMap() {
 
     const message = JSON.stringify(validEntries);
     // Send it to every peer connected to itself.
-    socketMap.forEach((socket, peerIp) => socket.write(message));
+    neighborsMap.forEach((socket, peerIp) => socket.write(message));
 }
 
 /**
