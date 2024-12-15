@@ -20,12 +20,12 @@ let server;
  */
 function startPeerServer(ipAddress, port) {
     const server = net.createServer((clientSocket) => {
-        const connectionIp = clientSocket.remoteAddress;
+        const peerIp = clientSocket.remoteAddress;
 
         // Check if a connection to this peer already exists. If not, add this socket to the neightbor Map
-        if (!neighborsMap.has(connectionIp)) {
-            console.log(`ADDED NEIGHBOR: ${connectionIp}`);
-            neighborsMap.set(connectionIp, clientSocket);
+        if (!neighborsMap.has(peerIp)) {
+            console.log(`ADDED NEIGHBOR: ${peerIp}`);
+            neighborsMap.set(peerIp, clientSocket);
         } else {
             clientSocket.destroy();
             return;
@@ -41,7 +41,7 @@ function startPeerServer(ipAddress, port) {
         });
 
         clientSocket.on('close', () => {
-            console.log(`Connection to ${connectionIp} closed.`);
+            console.log(`REMOVED NEIGHBOR: ${peerIp}`);
             neighborsMap.delete(connectionIp);
         });
     });
@@ -69,7 +69,7 @@ function setupPersistentSocket(peerIp, peerPort, retryDelay = 2000, maxRetries =
     const attemptConnection = () => {
         // Check if a connection to this peer already exists
         if (neighborsMap.has(peerIp)) {
-            console.log(`ADDED NEIGHBOR: ${connectionIp}`);
+            console.log(`ADDED NEIGHBOR: ${peerIp}`);
             return;
         }
 
