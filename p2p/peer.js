@@ -2,108 +2,113 @@ const net = require('net');
 const process = require('process');
 const os = require('os');
 
-// Poisson distribution parameter
-const lambda = 2 / 60;
-// Time-to-live for each peer entry
-const entryTTL = 120000;
 // Stores peer data { peerIp: timestamp }
 const peerMap = new Map();
 // Stores peers connected to this peer by IP address
 const neighborsMap = new Map();
-// Get the peers neighbors from the command line.
-const peersIps = process.argv.slice(2);
+// Poisson distribution parameter
+const lambda = 2 / 60;
+// Time-to-live for each peer entry
+const entryTTL = 120000;
+// The Server.
+let server;
 
-// Server setup.
-// Handle client connections.
-const server = net.createServer((clientSocket) => {
-    const connectionIp = clientSocket.remoteAddress;
-    // Check a socket connection to this peer already exists and add it to the map if not.
-    if (!neighborsMap.has(connectionIp)) {
-        console.log(`ADDED NEW NEIGHBOR: ${connectionIp}`);
-        neighborsMap.set(connectionIp, clientSocket);
-    }
-    // Else, destroy socket.
-    else {
-        console.log(`Existing socket for ${connectionIp} found. Closing duplicate.`);
-        clientSocket.destroy();
-        return;
-    }
-});
+/**
+ * Sets up a server to accept incoming peer connections.
+ * @param {string} ipAddress - IP address of the current peer.
+ * @param {number} port - Port of the current peer.
+ */
+function startPeerServer(ipAddress, port) {
+    const server = net.createServer((clientSocket) => {
+        const connectionIp = clientSocket.remoteAddress;
+        console.log(`New connection from: ${connectionIp}`);
 
-// Listen on port 3000. 
-server.listen(3000, '0.0.0.0', () => {
-    console.log(`Server running...`);
-});
+        // Check if a connection to this peer already exists. If not, add this socket to the neightbor Map
+        if (!neighborsMap.has(connectionIp)) {
+            console.log(`Adding new socket for ${connectionIp}`);
+            neighborsMap.set(connectionIp, clientSocket);
+        } else {
+            console.log(`Existing socket for ${connectionIp} found. Closing duplicate.`);
+            clientSocket.destroy();
+            return;
+        }
 
-// Event handler for errors.
-server.on('error', (err) => {
-    console.error('Server error:', err.message);
-});
-const connectToPeer = (peer) => {
-    // Check if a connection to this peer was already established by the other peer.
-    if (neighborsMap.has(peer)) {
-        return resolve();
-    }
-
-    const peerSocket = attemptConnection(peer);
-    // Setup event handlers if connection is established.
-    if (peerSocket) {
-        // Event handler for data received.
-        peerSocket.on('data', (data) => {
+        clientSocket.on('data', (data) => {
             const message = data.toString().trim();
             handleIncomingMessage(message);
         });
-        // Event handler for data received.
-        peerSocket.on('close', (data) => {
-            neighborsMap.delete(peer);
+
+        clientSocket.on('error', (err) => {
+            console.error('Client socket error:', err.message);
         });
-        // Resolve promise.
-        resolve();
-    }
-    // Increase numnber of retries.
-    retries++;
-    // Try to connect to the peer again in 2 seconds.
-    setTimeout(connectToPeer, 2000);
-}
 
-// Sockets setup (connections to other peers).
-const attemptConnection = (peer) => {
-    // Open socket.
-    const socket = new net.Socket();
-
-    // Event handler for connection.
-    socket.connect(3000, peer, () => {
-        console.log(`ADDED NEIGHBOR: ${peer}`);
-        // Add the socket to the neighbors map.
-        neighborsMap.set(peer, socket);
-    });
-    
-    // Event handler for errors.
-    socket.on('error', (err) => {
-        // Close the socket.
-        socket.destroy();
+        clientSocket.on('close', () => {
+            console.log(`Connection to ${connectionIp} closed.`);
+            neighborsMap.delete(connectionIp);
+        });
     });
 
-    return socket;
+    server.listen(port, ipAddress, () => {
+        console.log(`Server running on ${ipAddress}:${port}`);
+    });
+
+    server.on('error', (err) => {
+        console.error('Server error:', err.message);
+    });
+
+    return server;
 }
 
-// Setup sockets.
-peersIps.forEach((peer) => {
-    try {
-        return new Promise((resolve, reject) => {
-            let retries = 0;
-        
-            // If we reach the maximum number of retries. Stop trying to connect.
-            if (retries > 3) {
-                return reject(new Error(`Failed to connect to ${peer}`));
+/**
+ * Sets up a persistent connection to the specified peer with retry logic.
+ * @param {string} peerIp - IP address of the peer.
+ * @param {number} peerPort - Port of the peer.
+ * @returns {Promise<void>} - Resolves when the connection is established.
+ */
+async function setupPersistentSocket(peerIp, peerPort, retryDelay = 2000, maxRetries = 5) {
+    return new Promise((resolve, reject) => {
+        let retries = 0;
+
+        const attemptConnection = () => {
+            // Check if a connection to this peer already exists
+            if (neighborsMap.has(peerIp)) {
+                return resolve();
             }
-            connectToPeer(peer);
-        });
-    }
-    catch (error) {
-        console.error(`UNAVAILABLE PEER: ${peer}`);
-    }
-});
+
+            if (retries > maxRetries) {
+                return reject(new Error(`Failed to connect to ${peerIp}`));
+            }
+
+            const socket = new net.Socket();
+
+            socket.connect(peerPort, peerIp, () => {
+                console.log(`Successfully connected to ${peerIp}:${peerPort}`);
+                neighborsMap.set(peerIp, socket);
+
+                socket.on('data', (data) => {
+                    const message = data.toString().trim();
+                    handleIncomingMessage(message);
+                });
+
+                socket.on('error', (err) => {
+                });
+
+                socket.on('close', () => {
+                    neighborsMap.delete(peerIp);
+                });
+
+                resolve();
+            });
+
+            socket.on('error', (err) => {
+                retries++;
+                setTimeout(attemptConnection, retryDelay);
+            });
+        };
+
+        attemptConnection();
+    });
+}
 
 startAntiEntropy();
 
@@ -217,6 +222,7 @@ if (process.argv.length < 3) {
     process.exit(1);
 }
 
+const peersIps = process.argv.slice(2);
 const selfIpAddress = getOwnIP();
 
 // Start listening for OS signals for graceful shutdown
