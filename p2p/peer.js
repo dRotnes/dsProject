@@ -192,20 +192,17 @@ if (process.argv.length < 3) {
     process.exit(1);
 }
 
-async function setupInitialSockets() {
- // Establish connections to specified peers
-    for (const peer of peersIps) {
-        await setupPersistentSocket(peer, 3000);
-    }
-}
 const peersIps = process.argv.slice(2);
 const selfIpAddress = getOwnIP();
 
 (async () => {
-    await Promise.all([
-        startPeerServer('0.0.0.0', 3000),
-        setupInitialSockets,
-        // Periodically disseminate the peer map
-        startAntiEntropy,
-    ])
+    startPeerServer('0.0.0.0', 3000);
+
+    // Establish connections to specified peers
+    for (const peer of peersIps) {
+        await setupPersistentSocket(peer, 3000);
+    }
+
+    // Periodically disseminate the peer map
+    startAntiEntropy();
 })();
