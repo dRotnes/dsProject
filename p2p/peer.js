@@ -51,9 +51,9 @@ function handleIncomingMessage(message) {
     try {
         const receivedData = JSON.parse(message);
         console.log(receivedData);
-        receivedData.forEach(([peerPort, timestamp]) => {
+        receivedData.forEach(([peerIp, timestamp]) => {
             // Update the map only if the new timestamp is more recent.
-            peerMap.set(peerPort.toString(), Math.max(peerMap.get(peerPort) || 0, timestamp));
+            peerMap.set(peerIp.toString(), Math.max(peerMap.get(peerIp) || 0, timestamp));
         });
         // Delete the expired peers.
         deleteExpiredPeers();
@@ -69,7 +69,7 @@ function handleIncomingMessage(message) {
 */
 function disseminatePeerMap() {
     // Set your own entry.
-    peerMap.set(serverPort.toString(), Date.now());
+    peerMap.set(selfIpAddress, Date.now());
     // Delete the expired peers.
     deleteExpiredPeers();
     const validEntries = Array.from(peerMap.entries()).filter(([_, timestamp]) => {
@@ -100,7 +100,7 @@ function startAntiEntropy() {
  */
 function deleteExpiredPeers() {
     peerMap.forEach((timestamp, peer) => {
-        if (Date.now() - timestamp > entryTTL && peer != serverPort.toString()) {
+        if (Date.now() - timestamp > entryTTL) {
             console.log(`Deleted peer: ${peer}`);
             peerMap.delete(peer);
         }
@@ -163,6 +163,26 @@ if (process.argv.length < 3) {
 }
 
 const peersIps = process.argv.slice(2);
+
+/**
+ * Get the local IP address of the machine.
+ * 
+ * @returns {string | null} The local IP address, or null if not found.
+ */
+function getOwnIP() {
+    const networkInterfaces = os.networkInterfaces();
+    for (const interfaceName in networkInterfaces) {
+        const addresses = networkInterfaces[interfaceName];
+        for (const address of addresses) {
+            // Select the first IPv4 address that is not internal (127.0.0.1)
+            if (address.family === 'IPv4' && !address.internal) {
+                return address.address;
+            }
+        }
+    }
+    return null;
+}
+const selfIpAddress = getOwnIP().toString();
 
 (async () => {
     startPeerServer('0.0.0.0', parseInt(serverPort));
