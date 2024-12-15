@@ -79,4 +79,4 @@ if (process.argv.length < 2) {
     console.error('Usage: node calculatorServer.js');
     process.exit(1);
 }
-startServer('localhost', 3030);
+startServer('0.0.0.0', 3030);
