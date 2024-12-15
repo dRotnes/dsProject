@@ -9,6 +9,9 @@ let token = false;
 // Peer and server sockets.
 let peerSocket;
 let serverSocket;
+// Flag to track shutdown state.
+let shuttingDown = false;
+
 
 /**
  * Sets up a persistent connection to the specified ip and port.
