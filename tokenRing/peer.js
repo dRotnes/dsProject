@@ -23,63 +23,28 @@ let shuttingDown = false;
  * @returns {Promise<net.Socket>} - The connected socket.
  */
 function setupPersistentSocket(ip, port, name, onData) {
+    const retryDelay = 1000;
     return new Promise((resolve, reject) => {
-        const socket = new net.Socket();
-
-        socket.connect(port, ip, () => {
-            console.log(`${name} connected to ${ip}:${port}`);
-            resolve(socket);
-        });
-
-        socket.on('data', onData);
-
-        socket.on('error', async (err) => {
-            if (!shuttingDown) {
-                console.error(`${name} error: ${err.message}`);
-                try {
-                    const reconnectedSocket = await reconnectSocket(ip, port, name, onData);
-                    resolve(reconnectedSocket);
-                } catch (reconnectError) {
-                    console.error(`${name} failed to reconnect: ${reconnectError.message}`);
-                }
-            }
-        });
-    });
-}
-/**
- * Reconnects socket.
- * 
- * @param {string} ip             - IP address.
- * @param {number} port           - Port.
- * @param {string} name           - Name of the socket connection for logging purposes.
- * @param {function} onData       - Callback to handle incoming data.
- * @returns {Promise<net.Socket>} - The reconnected socket.
- */
-function reconnectSocket(ip, port, name, onData) {
-    return new Promise((resolve) => {
-        const retryDelay = 500;
-        const attemptReconnection = () => {
-            console.log(`${name} attempting to reconnect to ${ip}:${port}...`);
+        const attemptConnection = () =>{
             const socket = new net.Socket();
-
-            // Connect to passed port and IP.
+    
             socket.connect(port, ip, () => {
-                console.log(`${name} reconnected to ${ip}:${port}`);
+                console.log(`${name} connected to ${ip}:${port}`);
                 resolve(socket);
             });
-
-            // Handle data according to passed data handling function.
+    
             socket.on('data', onData);
-
-            // Handle error. Try to reconnect as many times as possible.
-            socket.on('error', () => {
-                console.log(`${name} retrying connection in ${retryDelay / 1000} seconds...`);
-                setTimeout(attemptReconnection, retryDelay);
+    
+            socket.on('error', async (err) => {
+                if (!shuttingDown) {
+                    console.error(`${name} error: ${err.message}. Attempting to connect again in ${retryDelay / 1000} seconds.`);
+                    setTimeout(attemptReconnection, retryDelay);
+                }
             });
-        };
-
-        attemptReconnection();
+        }
+        attemptConnection();
     });
+    
 }
 
 /**
@@ -106,6 +71,9 @@ function handlePeerSocketData(data) {
     }
 }
 
+/**
+ * Initiates the shutdown process. Sends shutdown command to connected peer.
+ */
 function initiateShutdown() {
     if (shuttingDown) return;
     shuttingDown = true;
@@ -120,6 +88,9 @@ function initiateShutdown() {
     cleanUpResources();
 }
 
+/**
+ * Cleans up the resources.
+ */
 function cleanUpResources() {
     console.log('Cleaning up resources...');
     if (serverSocket && !serverSocket.destroyed) {
