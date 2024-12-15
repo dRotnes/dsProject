@@ -1,5 +1,7 @@
 const net = require('net');
 
+let numberOfConnections = 0;
+
 // Function to start the server
 function startServer(ipAddress, port) {
     const server = net.createServer((clientSocket) => {
@@ -7,6 +9,7 @@ function startServer(ipAddress, port) {
         const clientPort = clientSocket.remotePort;
 
         console.log(`\nNew connection from ${clientAddress}:${clientPort}`);
+        numberOfConnections += 1;
 
         // Handle client messages
         clientSocket.on('data', (data) => {
@@ -19,6 +22,12 @@ function startServer(ipAddress, port) {
         // Handle client disconnect
         clientSocket.on('end', () => {
             console.log(`Connection from ${clientAddress}:${clientPort} closed.`);
+            numberOfConnections -= 1;
+            if(numberOfConnections <= 0) {
+                console.log('\nNo active connections. Server shutting down.');
+                server.close();
+                process.exit(0);
+            }
         });
 
         clientSocket.on('error', (err) => {
