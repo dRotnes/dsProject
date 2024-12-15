@@ -9,7 +9,7 @@ const neighborsMap = new Map();
 // Poisson distribution parameter
 const lambda = 2 / 60;
 // Time-to-live for each peer entry
-const entryTTL = 60000;
+const entryTTL = 120000;
 
 /**
  * Sets up a server to accept incoming peer connections.
@@ -165,7 +165,7 @@ function startAntiEntropy() {
  */
 function deleteExpiredPeers() {
     peerMap.forEach((timestamp, peer) => {
-        if (Date.now() - timestamp > entryTTL) {
+        if (Date.now() - timestamp > entryTTL && peer !== selfIpAddress) {
             peerMap.delete(peer);
             console.log(`\n DELETED EXPIRED PEER: ${peer}; NEW TOTAL: ${peerMap.size}`);
         }
