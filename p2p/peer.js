@@ -97,6 +97,7 @@ peersIps.forEach((peer) => {
                 // Try to connect to the peer again in 2 seconds.
                 setTimeout(connectToPeer, 2000);
             }
+            connectToPeer();
         });
     }
     catch (error) {
