@@ -216,7 +216,7 @@ function initiateShutdown() {
 
 // Main Execution
 if (process.argv.length < 3) {
-    console.error('Usage: node peer.js <peerIps>');
+    console.error('Usage: node peer.js [peerIps]');
     process.exit(1);
 }
 
