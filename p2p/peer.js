@@ -39,9 +39,35 @@ server.listen(3000, '0.0.0.0', () => {
 server.on('error', (err) => {
     console.error('Server error:', err.message);
 });
+const connectToPeer = (peer) => {
+    // Check if a connection to this peer was already established by the other peer.
+    if (neighborsMap.has(peer)) {
+        return resolve();
+    }
+
+    const peerSocket = attemptConnection(peer);
+    // Setup event handlers if connection is established.
+    if (peerSocket) {
+        // Event handler for data received.
+        peerSocket.on('data', (data) => {
+            const message = data.toString().trim();
+            handleIncomingMessage(message);
+        });
+        // Event handler for data received.
+        peerSocket.on('close', (data) => {
+            neighborsMap.delete(peer);
+        });
+        // Resolve promise.
+        resolve();
+    }
+    // Increase numnber of retries.
+    retries++;
+    // Try to connect to the peer again in 2 seconds.
+    setTimeout(connectToPeer, 2000);
+}
 
 // Sockets setup (connections to other peers).
-const attemptConnection = async () => {
+const attemptConnection = async (peer) => {
     // Open socket.
     const socket = new net.Socket();
 
@@ -71,33 +97,7 @@ peersIps.forEach((peer) => {
             if (retries > 3) {
                 return reject(new Error(`Failed to connect to ${peer}`));
             }
-            const connectToPeer = () => {
-                // Check if a connection to this peer was already established by the other peer.
-                if (neighborsMap.has(peer)) {
-                    return resolve();
-                }
-
-                const peerSocket = attemptConnection();
-                // Setup event handlers if connection is established.
-                if (peerSocket) {
-                    // Event handler for data received.
-                    peerSocket.on('data', (data) => {
-                        const message = data.toString().trim();
-                        handleIncomingMessage(message);
-                    });
-                    // Event handler for data received.
-                    peerSocket.on('close', (data) => {
-                        neighborsMap.delete(peer);
-                    });
-                    // Resolve promise.
-                    resolve();
-                }
-                // Increase numnber of retries.
-                retries++;
-                // Try to connect to the peer again in 2 seconds.
-                setTimeout(connectToPeer, 2000);
-            }
-            connectToPeer();
+            connectToPeer(peer);
         });
     }
     catch (error) {
