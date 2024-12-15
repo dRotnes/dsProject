@@ -16,10 +16,12 @@ const entryTTL = 60000;
  * @param {number} port - Port of the current peer.
  */
 function startPeerServer(ipAddress, port) {
-    const server = net.createServer((clientSocket) => {
+    const server = net.createServer(async (clientSocket) => {
         // This makes sense when we have different machines. It's not possible when I have one machine because the socket and server Ip.
         const connectionIp = clientSocket.remoteAddress;
         console.log(`New Connection: ${connectionIp}`);
+        // Add the new peer connected to the array of peers connected.
+        socketArray.push(await setupPersistentSocket(connectionIp, 3000, `PeerSocket`));
         
         clientSocket.on('data', async (data) => {
             const message = data.toString().trim();
@@ -90,10 +92,7 @@ function startAntiEntropy() {
         disseminatePeerMap();
         console.log(`Disseminated peer map: ${Array.from(peerMap.keys())}`);
         startAntiEntropy();
-        // Recalculate delay for the next cycle
     }, delay * 1000);
-
-    // update(); // Start the first dissemination cycle
 }
 
 /**
@@ -121,8 +120,6 @@ async function setupPersistentSocket(peerIp, peerPort, name) {
             const socket = new net.Socket();
             socket.connect(peerPort, peerIp, () => {
                 console.log(`${name} connected to ${peerIp}:${peerPort}`);
-                // // Set the peer that is directly connected.
-                // peerMap.set(peerPort.toString(), Date.now());
                 resolve(socket);
 
                 socket.on('data', (data) => {
@@ -135,13 +132,14 @@ async function setupPersistentSocket(peerIp, peerPort, name) {
 
                 socket.on('close', () => {
                     console.log(`${name} connection closed`);
+                    socketArray = socketArray.filter(item => item !== socket);
                 });
             });
 
             socket.on('error', (err) => {
                 console.error(`${name} error: ${err.message}`);
                 console.log(`Retrying connection to ${peerIp}:${peerPort} in 3 seconds...`);
-                setTimeout(connectToPeer, 3000); // Retry connection
+                setTimeout(connectToPeer, 3000);
             });
         };
 
@@ -160,19 +158,18 @@ function getPoissonDelay(lambda) {
 
 // Main Execution
 if (process.argv.length < 4) {
-    console.error('Usage: node yourScript.js <selfPort> <peersPorts>');
+    console.error('Usage: node peer.js <peersIps>');
     process.exit(1);
 }
 
-const serverPort = process.argv.slice(2)[0];
-const peersPorts = process.argv.slice(3);
+const peersIps = process.argv.slice(2);
 
 (async () => {
-    startPeerServer('localhost', parseInt(serverPort));
+    startPeerServer('0.0.0.0', parseInt(serverPort));
 
     // Setup persistent connections to other peers.
-    for (const peer of peersPorts) {
-        socketArray.push(await setupPersistentSocket('localhost', parseInt(peer), `PeerSocket`));
+    for (const peer of peersIps) {
+        socketArray.push(await setupPersistentSocket(peer, 3000, `PeerSocket`));
     }
 
     startAntiEntropy();
