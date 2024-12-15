@@ -88,7 +88,6 @@ function startAntiEntropy() {
     const delay = getPoissonDelay(lambda);
     setTimeout(() => {
         disseminatePeerMap();
-        const delay = getPoissonDelay(lambda);
         console.log(`Disseminated peer map: ${Array.from(peerMap.keys())}`);
         startAntiEntropy();
         // Recalculate delay for the next cycle
