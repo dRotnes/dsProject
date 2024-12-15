@@ -237,7 +237,12 @@ process.on('SIGTERM', initiateShutdown);
 
     // Establish connections to specified peers
     for (const peer of peersIps) {
-        await setupPersistentSocket(peer, 4000);
+        try {
+            await setupPersistentSocket(peer, 4000);
+        }
+        catch (error) {
+            console.error(`Failed to connect to peer ${peer}. Continuing without it`);
+        }
     }
 
     // Periodically disseminate the peer map
