@@ -32,7 +32,7 @@ const server = net.createServer((clientSocket) => {
 
 // Listen on port 3000. 
 server.listen(3000, '0.0.0.0', () => {
-    console.log(`Server running on ${ipAddress}:${port}`);
+    console.log(`Server running...`);
 });
 
 // Event handler for errors.
