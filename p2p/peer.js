@@ -209,11 +209,11 @@ const peersIps = process.argv.slice(2);
 const selfIpAddress = getOwnIP();
 
 (async () => {
-    startPeerServer('0.0.0.0', 3000);
+    startPeerServer('0.0.0.0', 4000);
 
     // Establish connections to specified peers
     for (const peer of peersIps) {
-        await setupPersistentSocket(peer, 3000);
+        await setupPersistentSocket(peer, 4000);
     }
 
     // Periodically disseminate the peer map
