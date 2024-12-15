@@ -24,8 +24,8 @@ function startPeerServer(ipAddress, port) {
 
         // Check if a connection to this peer already exists. If not, add this socket to the neightbor Map
         if (!neighborsMap.has(peerIp)) {
-            console.log(`ADDED NEIGHBOR: ${peerIp}`);
             neighborsMap.set(peerIp, clientSocket);
+            console.log(`ADDED NEIGHBOR: ${peerIp}`);
         } else {
             clientSocket.destroy();
             return;
@@ -42,7 +42,7 @@ function startPeerServer(ipAddress, port) {
 
         clientSocket.on('close', () => {
             console.log(`REMOVED NEIGHBOR: ${peerIp}`);
-            neighborsMap.delete(connectionIp);
+            neighborsMap.delete(peerIp);
         });
     });
 
@@ -229,7 +229,7 @@ process.on('SIGTERM', initiateShutdown);
     server = startPeerServer('0.0.0.0', 4000);
 
     // Establish connections to specified peers
-    peersIps.forEach((peer) => setupPersistentSocket(peer, 4000));
+    peersIps.forEach((peerIp) => setupPersistentSocket(peerIp, 4000));
 
     // Periodically disseminate the peer map
     startAntiEntropy();
