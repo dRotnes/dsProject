@@ -68,12 +68,12 @@ async function setupPersistentSocket(peerIp, peerPort, retryDelay = 2000, maxRet
         const attemptConnection = () => {
             // Check if a connection to this peer already exists
             if (neighborsMap.has(peerIp)) {
-                console.log(`Existing connection to ${peerIp} found. Reusing socket.`);
+                // console.log(`Existing connection to ${peerIp} found. Reusing socket.`);
                 return resolve();
             }
 
             if (retries > maxRetries) {
-                console.error(`Max retries reached for ${peerIp}. Giving up.`);
+                // console.error(`Max retries reached for ${peerIp}. Giving up.`);
                 return reject(new Error(`Failed to connect to ${peerIp}`));
             }
 
@@ -89,11 +89,11 @@ async function setupPersistentSocket(peerIp, peerPort, retryDelay = 2000, maxRet
                 });
 
                 socket.on('error', (err) => {
-                    console.error(`Socket error for ${peerIp}: ${err.message}`);
+                    // console.error(`Socket error for ${peerIp}: ${err.message}`);
                 });
 
                 socket.on('close', () => {
-                    console.log(`Connection to ${peerIp} closed.`);
+                    // console.log(`Connection to ${peerIp} closed.`);
                     neighborsMap.delete(peerIp);
                 });
 
@@ -102,7 +102,7 @@ async function setupPersistentSocket(peerIp, peerPort, retryDelay = 2000, maxRet
 
             socket.on('error', (err) => {
                 retries++;
-                console.error(`Failed to connect to ${peerIp}: ${err.message}. Retrying in ${retryDelay}ms...`);
+                // console.error(`Failed to connect to ${peerIp}: ${err.message}. Retrying in ${retryDelay}ms...`);
                 setTimeout(attemptConnection, retryDelay);
             });
         };
@@ -124,9 +124,9 @@ function handleIncomingMessage(message) {
         });
         // Delete the expired peers.
         deleteExpiredPeers();
-        console.log(`\nUpdated peer map: ${peerMap.size} total nodes (${Array.from(peerMap.entries())})`);
+        console.log(`\nUPDATED NETWORK: ${peerMap.size} TOTAL NODES`);
     } catch (error) {
-        console.error('Error processing incoming message:', error.message);
+        console.error('ERROR: ', error.message);
     }
 }
 
@@ -155,7 +155,7 @@ function startAntiEntropy() {
     const delay = getPoissonDelay(lambda);
     setTimeout(() => {
         disseminatePeerMap();
-        console.log(`Disseminated peer map: ${Array.from(peerMap.keys())}`);
+        console.log(`\nDISSEMINATING NETWORK: ${peerMap.size} TOTAL PEERS`);
         startAntiEntropy();
     }, delay * 1000);
 }
@@ -166,8 +166,8 @@ function startAntiEntropy() {
 function deleteExpiredPeers() {
     peerMap.forEach((timestamp, peer) => {
         if (Date.now() - timestamp > entryTTL) {
-            console.log(`Deleted peer: ${peer}`);
             peerMap.delete(peer);
+            console.log(`\n DELETED EXPIRED PEER: ${peer}; NEW TOTAL: ${peerMap.size}`);
         }
     });
 }
