@@ -21,8 +21,10 @@ function startPeerServer(ipAddress, port) {
         // This makes sense when we have different machines. It's not possible when I have one machine because the socket and server Ip.
         const connectionIp = clientSocket.remoteAddress;
         console.log(`New Connection: ${connectionIp}`);
-        // Add the new peer connected to the array of peers connected.
-        socketArray.push(await setupPersistentSocket(connectionIp, 3000, `PeerSocket`));
+        if (!socketArray.find((socket) => socket.remoteAddress === connectionIp)) {
+            // Add the new peer connected to the array of peers connected.
+            socketArray.push(await setupPersistentSocket(connectionIp, 3000, `PeerSocket`));
+        }
         
         clientSocket.on('data', async (data) => {
             const message = data.toString().trim();
