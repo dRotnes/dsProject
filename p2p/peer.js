@@ -157,7 +157,7 @@ function getPoissonDelay(lambda) {
 }
 
 // Main Execution
-if (process.argv.length < 4) {
+if (process.argv.length < 3) {
     console.error('Usage: node peer.js <peersIps>');
     process.exit(1);
 }
