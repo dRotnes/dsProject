@@ -210,7 +210,7 @@ function initiateShutdown() {
     console.log('Shutting Down...');
 
     if (server) {
-        server.end();
+        server.close();
     }
 
     setTimeout(() => {
