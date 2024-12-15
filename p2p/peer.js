@@ -110,8 +110,6 @@ async function setupPersistentSocket(peerIp, peerPort, retryDelay = 2000, maxRet
     });
 }
 
-startAntiEntropy();
-
 /**
  * Handles incoming messages to register peers and update the map.
  * @param {string} message - The message containing peer data.
@@ -228,3 +226,20 @@ const selfIpAddress = getOwnIP();
 // Start listening for OS signals for graceful shutdown
 process.on('SIGINT', initiateShutdown);
 process.on('SIGTERM', initiateShutdown);
+
+(async () => {
+    server = startPeerServer('0.0.0.0', 4000);
+
+    // Establish connections to specified peers
+    for (const peer of peersIps) {
+        try {
+            await setupPersistentSocket(peer, 4000);
+        }
+        catch (error) {
+            console.error(`Failed to connect to peer ${peer}. Continuing without it`);
+        }
+    }
+
+    // Periodically disseminate the peer map
+    startAntiEntropy();
+})();
