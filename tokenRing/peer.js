@@ -229,7 +229,7 @@ const [nextPeerIp, serverIp] = process.argv.slice(2);
 
 ( async () => {
     [_, serverSocket, peerSocket, _] = await Promise.all([
-        startPeerServer('localhost', 3000),
+        startPeerServer('0.0.0.0', 3000),
         setupPersistentSocket(serverIp, 3030, 'ServerSocket', handleServerSocketData),
         setupPersistentSocket(nextPeerIp, 3000, 'PeerSocket', handlePeerSocketData),
         startRequestGenerator(4 / 60)
