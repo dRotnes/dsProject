@@ -30,6 +30,20 @@ function startPeerServer(ipAddress, port) {
             clientSocket.destroy();
             return;
         }
+
+        clientSocket.on('data', (data) => {
+            const message = data.toString().trim();
+            handleIncomingMessage(message);
+        });
+
+        clientSocket.on('error', (err) => {
+            console.error('Client socket error:', err.message);
+        });
+
+        clientSocket.on('close', () => {
+            console.log(`Connection to ${connectionIp} closed.`);
+            neighborsMap.delete(connectionIp);
+        });
     });
 
     server.listen(port, ipAddress, () => {
@@ -217,7 +231,7 @@ process.on('SIGTERM', initiateShutdown);
     // Establish connections to specified peers
     for (const peer of peersIps) {
         try {
-            await setupPersistentSocket(peer, 4000);
+            setupPersistentSocket(peer, 4000);
         }
         catch (error) {
             console.error(`Failed to connect to peer ${peer}. Continuing without it`);
