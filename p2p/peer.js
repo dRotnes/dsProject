@@ -4,8 +4,8 @@ const os = require('os');
 
 // Stores peer data { peerIp: timestamp }
 const peerMap = new Map();
-// Stores peers connected to this peer
-const socketArray = [];
+// Stores peers connected to this peer by IP address
+const socketMap = new Map();
 // Poisson distribution parameter
 const lambda = 4 / 60;
 // Time-to-live for each peer entry
@@ -17,22 +17,32 @@ const entryTTL = 60000;
  * @param {number} port - Port of the current peer.
  */
 function startPeerServer(ipAddress, port) {
-    const server = net.createServer(async (clientSocket) => {
-        // This makes sense when we have different machines. It's not possible when I have one machine because the socket and server Ip.
+    const server = net.createServer((clientSocket) => {
         const connectionIp = clientSocket.remoteAddress;
-        console.log(`New Connection: ${connectionIp}`);
-        if (!socketArray.find((socket) => socket.remoteAddress === connectionIp)) {
-            // Add the new peer connected to the array of peers connected.
-            socketArray.push(await setupPersistentSocket(connectionIp, 3000, `PeerSocket`));
+        console.log(`New connection from: ${connectionIp}`);
+
+        // Check if a connection to this peer already exists
+        if (!socketMap.has(connectionIp)) {
+            console.log(`Adding new socket for ${connectionIp}`);
+            socketMap.set(connectionIp, clientSocket);
+        } else {
+            console.log(`Existing socket for ${connectionIp} found. Closing duplicate.`);
+            clientSocket.destroy(); // Close duplicate socket
+            return;
         }
-        
-        clientSocket.on('data', async (data) => {
+
+        clientSocket.on('data', (data) => {
             const message = data.toString().trim();
             handleIncomingMessage(message);
         });
 
         clientSocket.on('error', (err) => {
             console.error('Client socket error:', err.message);
+        });
+
+        clientSocket.on('close', () => {
+            console.log(`Connection to ${connectionIp} closed.`);
+            socketMap.delete(connectionIp);
         });
     });
 
@@ -43,7 +53,61 @@ function startPeerServer(ipAddress, port) {
     server.on('error', (err) => {
         console.error('Server error:', err.message);
     });
+}
 
+/**
+ * Sends a message to a connected peer.
+ * @param {string} peerIp - IP address of the peer.
+ * @param {string} message - The message to send.
+ */
+function sendMessageToPeer(peerIp, message) {
+    const socket = socketMap.get(peerIp);
+    if (socket) {
+        socket.write(message);
+    } else {
+        console.warn(`No socket found for peer: ${peerIp}`);
+    }
+}
+
+/**
+ * Sets up a persistent connection to the specified peer with retry logic.
+ * @param {string} peerIp - IP address of the peer.
+ * @param {number} peerPort - Port of the peer.
+ * @returns {Promise<void>} - Resolves when the connection is established.
+ */
+async function setupPersistentSocket(peerIp, peerPort) {
+    return new Promise((resolve) => {
+        // Check if a connection to this peer already exists
+        if (socketMap.has(peerIp)) {
+            console.log(`Existing connection to ${peerIp} found. Reusing socket.`);
+            return resolve();
+        }
+
+        const socket = new net.Socket();
+        socket.connect(peerPort, peerIp, () => {
+            console.log(`Connected to ${peerIp}:${peerPort}`);
+            socketMap.set(peerIp, socket);
+
+            socket.on('data', (data) => {
+                handleIncomingMessage(data.toString());
+            });
+
+            socket.on('error', (err) => {
+                console.error(`Socket error for ${peerIp}: ${err.message}`);
+            });
+
+            socket.on('close', () => {
+                console.log(`Connection to ${peerIp} closed.`);
+                socketMap.delete(peerIp);
+            });
+
+            resolve();
+        });
+
+        socket.on('error', (err) => {
+            console.error(`Failed to connect to ${peerIp}: ${err.message}`);
+        });
+    });
 }
 
 /**
@@ -53,7 +117,7 @@ function startPeerServer(ipAddress, port) {
 function handleIncomingMessage(message) {
     try {
         const receivedData = JSON.parse(message);
-        console.log(receivedData);
+        console.log(`Received data: ${receivedData}`);
         receivedData.forEach(([peerIp, timestamp]) => {
             // Update the map only if the new timestamp is more recent.
             peerMap.set(peerIp.toString(), Math.max(peerMap.get(peerIp) || 0, timestamp));
@@ -67,9 +131,8 @@ function handleIncomingMessage(message) {
 }
 
 /**
- * Disseminates the current peer map to a connected peer.
- * @param {net.Socket} socket - The socket to send the map.
-*/
+ * Disseminates the current peer map to all connected peers.
+ */
 function disseminatePeerMap() {
     // Set your own entry.
     peerMap.set(selfIpAddress, Date.now());
@@ -79,11 +142,13 @@ function disseminatePeerMap() {
         // Filter expired entries
         return Date.now() - timestamp <= entryTTL;
     });
-    
-    // Send only valid entries as JSON.
+
     const message = JSON.stringify(validEntries);
     // Send it to every peer connected to itself.
-    socketArray.forEach((socket) => socket.write(message));
+    socketMap.forEach((socket, peerIp) => {
+        console.log(`Sending peer map to ${peerIp}`);
+        socket.write(message);
+    });
 }
 
 /**
@@ -111,46 +176,6 @@ function deleteExpiredPeers() {
 }
 
 /**
- * Sets up a persistent connection to the specified peer with retry logic.
- * @param {string} peerIp - IP address of the peer.
- * @param {number} peerPort - Port of the peer.
- * @param {string} name - Name of the connection.
- * @returns {Promise<net.Socket>} - The connected socket.
- */
-async function setupPersistentSocket(peerIp, peerPort, name) {
-    return new Promise((resolve, reject) => {
-        const connectToPeer = () => {
-            const socket = new net.Socket();
-            socket.connect(peerPort, peerIp, () => {
-                console.log(`${name} connected to ${peerIp}:${peerPort}`);
-                resolve(socket);
-
-                socket.on('data', (data) => {
-                    handleIncomingMessage(data.toString());
-                });
-
-                socket.on('error', (err) => {
-                    console.error(`${name} error: ${err.message}`);
-                });
-
-                socket.on('close', () => {
-                    console.log(`${name} connection closed`);
-                    socketArray = socketArray.filter(item => item !== socket);
-                });
-            });
-
-            socket.on('error', (err) => {
-                console.error(`${name} error: ${err.message}`);
-                console.log(`Retrying connection to ${peerIp}:${peerPort} in 3 seconds...`);
-                setTimeout(connectToPeer, 3000);
-            });
-        };
-
-        connectToPeer();
-    });
-}
-
-/**
  * Returns the delay to apply when creating the requests.
  * @param {number} lambda - The lambda to use as guideline.
  * @returns {number}
@@ -159,17 +184,8 @@ function getPoissonDelay(lambda) {
     return -Math.log(1.0 - Math.random()) / lambda;
 }
 
-// Main Execution
-if (process.argv.length < 3) {
-    console.error('Usage: node peer.js <peersIps>');
-    process.exit(1);
-}
-
-const peersIps = process.argv.slice(2);
-
 /**
  * Get the local IP address of the machine.
- * 
  * @returns {string | null} The local IP address, or null if not found.
  */
 function getOwnIP() {
@@ -185,15 +201,24 @@ function getOwnIP() {
     }
     return null;
 }
-const selfIpAddress = getOwnIP().toString();
+
+// Main Execution
+if (process.argv.length < 3) {
+    console.error('Usage: node peer.js <peerIps>');
+    process.exit(1);
+}
+
+const peersIps = process.argv.slice(2);
+const selfIpAddress = getOwnIP();
 
 (async () => {
     startPeerServer('0.0.0.0', 3000);
 
-    // Setup persistent connections to other peers.
+    // Establish connections to specified peers
     for (const peer of peersIps) {
-        socketArray.push(await setupPersistentSocket(peer, 3000, `PeerSocket`));
+        await setupPersistentSocket(peer, 3000);
     }
 
+    // Periodically disseminate the peer map
     startAntiEntropy();
 })();
