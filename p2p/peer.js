@@ -27,7 +27,7 @@ function startPeerServer(ipAddress, port) {
             socketMap.set(connectionIp, clientSocket);
         } else {
             console.log(`Existing socket for ${connectionIp} found. Closing duplicate.`);
-            clientSocket.destroy(); // Close duplicate socket
+            clientSocket.destroy();
             return;
         }
 
@@ -56,20 +56,6 @@ function startPeerServer(ipAddress, port) {
 }
 
 /**
- * Sends a message to a connected peer.
- * @param {string} peerIp - IP address of the peer.
- * @param {string} message - The message to send.
- */
-function sendMessageToPeer(peerIp, message) {
-    const socket = socketMap.get(peerIp);
-    if (socket) {
-        socket.write(message);
-    } else {
-        console.warn(`No socket found for peer: ${peerIp}`);
-    }
-}
-
-/**
  * Sets up a persistent connection to the specified peer with retry logic.
  * @param {string} peerIp - IP address of the peer.
  * @param {number} peerPort - Port of the peer.
@@ -89,7 +75,8 @@ async function setupPersistentSocket(peerIp, peerPort) {
             socketMap.set(peerIp, socket);
 
             socket.on('data', (data) => {
-                handleIncomingMessage(data.toString());
+                const message = data.toString().trim();
+                handleIncomingMessage(message);
             });
 
             socket.on('error', (err) => {
@@ -145,10 +132,7 @@ function disseminatePeerMap() {
 
     const message = JSON.stringify(validEntries);
     // Send it to every peer connected to itself.
-    socketMap.forEach((socket, peerIp) => {
-        console.log(`Sending peer map to ${peerIp}`);
-        socket.write(message);
-    });
+    socketMap.forEach((socket, peerIp) => socket.write(message));
 }
 
 /**
@@ -208,17 +192,20 @@ if (process.argv.length < 3) {
     process.exit(1);
 }
 
+async function setupInitialSockets() {
+ // Establish connections to specified peers
+    for (const peer of peersIps) {
+        await setupPersistentSocket(peer, 3000);
+    }
+}
 const peersIps = process.argv.slice(2);
 const selfIpAddress = getOwnIP();
 
 (async () => {
-    startPeerServer('0.0.0.0', 3000);
-
-    // Establish connections to specified peers
-    for (const peer of peersIps) {
-        await setupPersistentSocket(peer, 3000);
-    }
-
-    // Periodically disseminate the peer map
-    startAntiEntropy();
+    await Promise.all([
+        startPeerServer('0.0.0.0', 3000),
+        setupInitialSockets,
+        // Periodically disseminate the peer map
+        startAntiEntropy,
+    ])
 })();
