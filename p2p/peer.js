@@ -69,11 +69,11 @@ peersIps.forEach((peer) => {
         
             // If we reach the maximum number of retries. Stop trying to connect.
             if (retries > 3) {
-                return reject(new Error(`Failed to connect to ${peerIp}`));
+                return reject(new Error(`Failed to connect to ${peer}`));
             }
             const connectToPeer = () => {
                 // Check if a connection to this peer was already established by the other peer.
-                if (neighborsMap.has(peerIp)) {
+                if (neighborsMap.has(peer)) {
                     return resolve();
                 }
 
