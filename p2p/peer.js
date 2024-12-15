@@ -61,7 +61,6 @@ function startPeerServer(ipAddress, port) {
  * Sets up a persistent connection to the specified peer with retry logic.
  * @param {string} peerIp - IP address of the peer.
  * @param {number} peerPort - Port of the peer.
- * @returns {Promise<void>} - Resolves when the connection is established.
  */
 function setupPersistentSocket(peerIp, peerPort, retryDelay = 2000, maxRetries = 5) {
     let retries = 0;
@@ -95,8 +94,6 @@ function setupPersistentSocket(peerIp, peerPort, retryDelay = 2000, maxRetries =
             socket.on('close', () => {
                 neighborsMap.delete(peerIp);
             });
-
-            resolve();
         });
 
         socket.on('error', (err) => {
