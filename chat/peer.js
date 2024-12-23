@@ -129,8 +129,10 @@ async function setupPersistentSocket(peerIp, peerPort, retryDelay = 2000, maxRet
                 neighborsMap.set(peerIp, socket);
 
                 socket.on('data', (data) => {
-                    const message = data.toString().trim();
-                    handleIncomingMessage(message);
+                    const messages = data.toString().trim().split('::');
+                    messages.forEach((message) => {
+                        handleIncomingMessage(message);
+                    });
                 });
 
                 socket.on('error', (err) => {
@@ -171,7 +173,7 @@ function handleIncomingMessage(message) {
 
 function sendMessage(message) {
     const jsonMessage = JSON.stringify({ text: message, clock: lamportClock });
-    neighborsMap.forEach((socket) => socket.write('::' + jsonMessage));
+    neighborsMap.forEach((socket) => socket.write(jsonMessage + '::'));
 }
 
 function printMessages() {
