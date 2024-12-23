@@ -139,6 +139,8 @@ const selfIpAddress = getOwnIP();
 (async () => {
     server = startPeerServer('0.0.0.0', 4000);
 
+    await setupPersistentSocket(selfIpAddress, 4000);
+
     // Establish connections to specified peers
     for (const peer of peersIps) {
         try {
