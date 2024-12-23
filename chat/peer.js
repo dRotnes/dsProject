@@ -75,10 +75,10 @@ function startPeerServer(ipAddress, port) {
         }
 
         clientSocket.on('data', (data) => {
-            const messages = data.toString().trim().split('\n'); // Split messages by delimiter
-            for (const message of messages) {
-                handleIncomingMessage(message); // Process each message
-            }
+            const messages = data.toString().trim().split('\n');
+            messages.forEach((message) => {
+                handleIncomingMessage(message);
+            });
         });
 
         clientSocket.on('error', (err) => {
