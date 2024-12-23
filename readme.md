@@ -5,10 +5,7 @@ This project consists in the implementation of 3 distributed systems algorithms.
 
 ***
 ### Setup
-Everything was implemented with node v20+, but other versions should work aswell.
-First you need to go to the root directory: `cd dsProject`
-Run `npm i` to install the necessary packages.
-And you're ready to go!
+You must have `node` installed on your machine. Everything was implemented with node v20+, but other versions should work aswell. First you need to go to the root directory: `cd dsProject` Run `npm i` to install the necessary packages. And you're ready to go!
 ***
 
 ### Token Ring
