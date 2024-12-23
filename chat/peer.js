@@ -75,7 +75,7 @@ function startPeerServer(ipAddress, port) {
         }
 
         clientSocket.on('data', (data) => {
-            const messages = data.toString().trim().split('\n');
+            const messages = data.toString().trim().split('::');
             messages.forEach((message) => {
                 handleIncomingMessage(message);
             });
@@ -171,7 +171,7 @@ function handleIncomingMessage(message) {
 
 function sendMessage(message) {
     const jsonMessage = JSON.stringify({ text: message, clock: lamportClock });
-    neighborsMap.forEach((socket) => socket.write(jsonMessage + '\n'));
+    neighborsMap.forEach((socket) => socket.write(jsonMessage + '::'));
 }
 
 function printMessages() {
