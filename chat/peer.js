@@ -3,7 +3,7 @@ const process = require('process');
 const os = require('os');
 const { PriorityQueue } = require('@datastructures-js/priority-queue');
 
-const lambda = 5 / 60;
+const lambda = 60 / 60;
 let neighborsMap = new Map();
 let lamportClock = 0;
 const queue = new PriorityQueue((a, b) => {
