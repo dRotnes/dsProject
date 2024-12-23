@@ -75,7 +75,7 @@ function startPeerServer(ipAddress, port) {
         }
 
         clientSocket.on('data', (data) => {
-            const messages = data.toString().trim().split('::');
+            const messages = data.toString().trim().split('\n');
             messages.forEach((message) => {
                 handleIncomingMessage(message);
             });
@@ -129,7 +129,7 @@ async function setupPersistentSocket(peerIp, peerPort, retryDelay = 2000, maxRet
                 neighborsMap.set(peerIp, socket);
 
                 socket.on('data', (data) => {
-                    const messages = data.toString().trim().split('::');
+                    const messages = data.toString().trim().split('\n');
                     messages.forEach((message) => {
                         handleIncomingMessage(message);
                     });
@@ -173,7 +173,7 @@ function handleIncomingMessage(message) {
 
 function sendMessage(message) {
     const jsonMessage = JSON.stringify({ text: message, clock: lamportClock });
-    neighborsMap.forEach((socket) => socket.write(jsonMessage + '::'));
+    neighborsMap.forEach((socket) => socket.write(jsonMessage + '\n'));
 }
 
 function printMessages() {
