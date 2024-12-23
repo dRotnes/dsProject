@@ -158,6 +158,7 @@ function getPoissonDelay(lambda) {
  * Periodically updates the peer map using Anti-Entropy.
  */
 function startMessageSending() {
+    console.log('A');
     const delay = getPoissonDelay(lambda);
     setTimeout(() => {
         lamportClock = lamportClock + 1;
