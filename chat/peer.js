@@ -114,7 +114,6 @@ async function setupPersistentSocket(peerIp, peerPort, retryDelay = 2000, maxRet
  */
 function handleIncomingMessage(message) {
     const { text, clock } = JSON.parse(message);
-    console.log(text, clock);
     // Adjust clock.
     lamportClock = Math.max(lamportClock, clock) + 1;
     if (text !== 'ACK') {
@@ -136,6 +135,7 @@ function printMessages() {
     // Print messages if not an ACK.
     while(queue.size > 0) {
         const message = queue.dequeue();
+        console.log(message);
         if (message !== 'ACK') {
             console.log(message);
         }
