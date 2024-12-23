@@ -11,7 +11,7 @@ const queue = new PriorityQueue((a, b) => {
   }
 );
 
-const basketballTerms = new Set([
+const wordSet = new Set([
     "Air Ball",
     "Alley-oop",
     "Assist",
