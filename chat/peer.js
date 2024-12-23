@@ -31,8 +31,10 @@ function startPeerServer(ipAddress, port) {
         }
 
         clientSocket.on('data', (data) => {
-            const message = data.toString().trim();
-            handleIncomingMessage(message);
+            const messages = data.toString().trim().split('\n'); // Split messages by delimiter
+            for (const message of messages) {
+                handleIncomingMessage(message); // Process each message
+            }
         });
 
         clientSocket.on('error', (err) => {
@@ -82,18 +84,18 @@ async function setupPersistentSocket(peerIp, peerPort, retryDelay = 2000, maxRet
                 console.log(`ADDED NEIGHBOR: ${peerIp}`);
                 neighborsMap.set(peerIp, socket);
 
-                // socket.on('data', (data) => {
-                //     const message = data.toString().trim();
-                //     handleIncomingMessage(message);
-                // });
+                socket.on('data', (data) => {
+                    const message = data.toString().trim();
+                    handleIncomingMessage(message);
+                });
 
-                // socket.on('error', (err) => {
-                // });
+                socket.on('error', (err) => {
+                });
 
-                // socket.on('close', () => {
-                //     console.log(`REMOVED NEIGHBOR: ${peerIp}`);
-                //     neighborsMap.delete(peerIp);
-                // });
+                socket.on('close', () => {
+                    console.log(`REMOVED NEIGHBOR: ${peerIp}`);
+                    neighborsMap.delete(peerIp);
+                });
 
                 resolve();
             });
@@ -113,22 +115,23 @@ async function setupPersistentSocket(peerIp, peerPort, retryDelay = 2000, maxRet
  * @param {string} message - The message containing peer data.
  */
 function handleIncomingMessage(message) {
-    const { text, clock } = JSON.parse(message);
-    // Adjust clock.
-    lamportClock = Math.max(lamportClock, clock) + 1;
-    if (text !== 'ACK') {
-        // Send ACK to all.
-        sendMessage('ACK');
+    try {
+        const { text, clock } = JSON.parse(message);
+        // Adjust clock
+        lamportClock = Math.max(lamportClock, clock) + 1;
+        if (text !== 'ACK') {
+            sendMessage('ACK'); // Send ACK
+        }
+        queue.enqueue({ text, clock }); // Add message to queue
+        printMessages();
+    } catch (error) {
+        console.error('Invalid message received:', message);
     }
-    // Add message to queue.
-    queue.enqueue({text, clock});
-    printMessages();
 }
 
 function sendMessage(message) {
-    const jsonMessage = { text: message, clock: lamportClock }
-    // Send ack to all.
-    neighborsMap.forEach((socket, peerIp) => socket.write(JSON.stringify(jsonMessage)));
+    const jsonMessage = JSON.stringify({ text: message, clock: lamportClock });
+    neighborsMap.forEach((socket) => socket.write(jsonMessage + '\n'));
 }
 
 function printMessages() {
