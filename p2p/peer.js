@@ -214,6 +214,10 @@ function initiateShutdown() {
     }, 1000);
 }
 
+// Start listening for OS signals for graceful shutdown
+process.on('SIGINT', initiateShutdown);
+process.on('SIGTERM', initiateShutdown);
+
 // Main Execution
 if (process.argv.length < 3) {
     console.error('Usage: node peer.js [peerIps]');
@@ -222,10 +226,6 @@ if (process.argv.length < 3) {
 
 const peersIps = process.argv.slice(2);
 const selfIpAddress = getOwnIP();
-
-// Start listening for OS signals for graceful shutdown
-process.on('SIGINT', initiateShutdown);
-process.on('SIGTERM', initiateShutdown);
 
 (async () => {
     server = startPeerServer('0.0.0.0', 4000);

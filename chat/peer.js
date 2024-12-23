@@ -3,7 +3,7 @@ const process = require('process');
 const os = require('os');
 const { PriorityQueue } = require('@datastructures-js/priority-queue');
 
-const lambda = 60 / 60;
+const lambda = 1;
 let neighborsMap = new Map();
 let lamportClock = 0;
 const queue = new PriorityQueue((a, b) => {
@@ -75,6 +75,9 @@ function startPeerServer(ipAddress, port) {
         }
 
         clientSocket.on('data', (data) => {
+            if (data.toString() === 'SHUTDOWN'){
+                initiateShutdown();
+            }
             const messages = data.toString().trim().split('\n');
             messages.forEach((message) => {
                 handleIncomingMessage(message);
@@ -129,6 +132,9 @@ async function setupPersistentSocket(peerIp, peerPort, retryDelay = 2000, maxRet
                 neighborsMap.set(peerIp, socket);
 
                 socket.on('data', (data) => {
+                    if (data.toString() === 'SHUTDOWN'){
+                        initiateShutdown();
+                    }
                     const messages = data.toString().trim().split('\n');
                     messages.forEach((message) => {
                         handleIncomingMessage(message);
@@ -208,6 +214,34 @@ function startMessageSending() {
     }, delay * 1000);
 }
 
+/**
+ * Initiates the shutdown process. Sends shutdown command to connected peer.
+ */
+function initiateShutdown() {
+    if (shuttingDown) return;
+    shuttingDown = true;
+
+    console.log('Initiating graceful shutdown...');
+    if (peerSocket && !peerSocket.destroyed) {
+        peerSocket.write('SHUTDOWN', () => {
+            console.log('Notified next peer about shutdown.');
+        });
+    }
+
+    if (server) {
+        server.close();
+    }
+
+    setTimeout(() => {
+        console.log('Shutdown complete.');
+        process.exit(0); // Exit the process
+    }, 1000);
+}
+
+
+// Start listening for OS signals for graceful shutdown
+process.on('SIGINT', initiateShutdown);
+process.on('SIGTERM', initiateShutdown);
 
 // Main Execution
 if (process.argv.length < 3) {
