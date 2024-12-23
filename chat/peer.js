@@ -116,14 +116,12 @@ function handleIncomingMessage(message) {
     const { text, clock } = JSON.parse(message);
     // Adjust clock.
     lamportClock = Math.max(lamportClock, clock) + 1;
-    console.log(lamportClock);
     if (text !== 'ACK') {
         // Send ACK to all.
         sendMessage('ACK');
     }
     // Add message to queue.
     queue.enqueue({text, clock});
-    console.log(queue);
     printMessages();
 }
 
@@ -136,10 +134,9 @@ function sendMessage(message) {
 function printMessages() {
     // Print messages if not an ACK.
     while(queue.size > 0) {
-        const message = queue.dequeue();
-        console.log(message);
-        if (message !== 'ACK') {
-            console.log(message);
+        const { text } = queue.dequeue();
+        if (text !== 'ACK') {
+            console.log(text);
         }
     }
 }
