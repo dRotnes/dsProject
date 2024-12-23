@@ -11,7 +11,7 @@ const queue = new PriorityQueue((a, b) => {
   }
 );
 
-const wordSet = new Set([
+const wordsArray = [
     "Air Ball",
     "Alley-oop",
     "Assist",
@@ -53,7 +53,7 @@ const wordSet = new Set([
     "Traveling",
     "Turnover",
     "Zone Defense"
-]);
+];
 
 /**
  * Sets up a server to accept incoming peer connections.
@@ -201,21 +201,13 @@ function getPoissonDelay(lambda) {
  * Periodically updates the peer map using Anti-Entropy.
  */
 function startMessageSending() {
-    const words = Array.from(wordSet); // Convert set to array for indexing
-
-    const sendRandomWord = () => {
-        const delay = getPoissonDelay(lambda);
-        setTimeout(() => {
-            lamportClock += 1; // Increment Lamport clock
-            const randomWord = words[Math.floor(Math.random() * words.length)];
-            neighborsMap.forEach((_, peerIp) => {
-                sendMessage(randomWord, peerIp);
-            });
-            sendRandomWord();
-        }, delay * 1000);
-    };
-
-    sendRandomWord();
+    const delay = getPoissonDelay(lambda);
+    setTimeout(() => {
+        lamportClock += 1;
+        const randomWord = wordsArray[Math.floor(Math.random() * wordsArray.length)];
+        sendMessage(randomWord, peerIp);
+        startMessageSending();
+    }, delay * 1000);
 }
 
 
