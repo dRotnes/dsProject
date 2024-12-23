@@ -31,8 +31,8 @@ node app.js
 To start the project, firt go to the directory `cd p2p`.
 To run a peer you must run the command:
 ```
-node peer.js [peerIps
-]```
+node peer.js [peerIps]
+```
 The `peerIps` parameter is the different neighbors ips separated by regular spaces.
 The algorithm starts as soon as the nodes are connected.
 
