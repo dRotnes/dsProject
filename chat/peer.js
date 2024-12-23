@@ -133,7 +133,7 @@ function sendMessage(message) {
 
 function printMessages() {
     // Print messages if not an ACK.
-    while(queue.size > 0) {
+    while(queue.size() > 0) {
         const { text } = queue.dequeue();
         if (text !== 'ACK') {
             console.log(text);
