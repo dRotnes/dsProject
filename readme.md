@@ -43,7 +43,8 @@ To run a peer you must run the command:
 ```
 node peer.js [peerIps] 
 ```
-OBS: It's important that in the peerIps, it includes the ip of the own machine.
+The `peerIps` parameter is the different neighbors ips separated by regular spaces.
+***OBS: It's important that in the peerIps, it includes the ip of the own machine.***
 The algorithm starts as soon as the nodes are connected.
 
 ***
