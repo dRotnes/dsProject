@@ -82,18 +82,18 @@ async function setupPersistentSocket(peerIp, peerPort, retryDelay = 2000, maxRet
                 console.log(`ADDED NEIGHBOR: ${peerIp}`);
                 neighborsMap.set(peerIp, socket);
 
-                socket.on('data', (data) => {
-                    const message = data.toString().trim();
-                    handleIncomingMessage(message);
-                });
+                // socket.on('data', (data) => {
+                //     const message = data.toString().trim();
+                //     handleIncomingMessage(message);
+                // });
 
-                socket.on('error', (err) => {
-                });
+                // socket.on('error', (err) => {
+                // });
 
-                socket.on('close', () => {
-                    console.log(`REMOVED NEIGHBOR: ${peerIp}`);
-                    neighborsMap.delete(peerIp);
-                });
+                // socket.on('close', () => {
+                //     console.log(`REMOVED NEIGHBOR: ${peerIp}`);
+                //     neighborsMap.delete(peerIp);
+                // });
 
                 resolve();
             });
