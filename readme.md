@@ -32,7 +32,9 @@ The algorithm starts as soon as the nodes are connected.
 ### Chat (TOM)
 To start the project, firt go to the directory `cd chat`.
 To run a peer you must run the command:
-```node peer.js [peerIps]```
+```
+    bash node peer.js [peerIps] 
+```
 OBS: It's important that in the peerIps, it includes the ip of the own machine.
 The algorithm starts as soon as the nodes are connected.
 
