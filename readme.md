@@ -48,4 +48,4 @@ The algorithm starts as soon as the nodes are connected.
 
 ***
 ### Important notes
-In the `token ring` and `chat` projects, once a node receives am interruption signal, it executes a graceful shutdown of the whole network. As for the `p2p` project, the neighbors will simply remove the dead peer from it's neighbors map.
+In the `token ring` and `chat` projects, once a node receives am interruption signal, it executes a graceful shutdown of the whole network. As for the `p2p` project, the neighbors will simply remove the dead peer from its neighbors map.
