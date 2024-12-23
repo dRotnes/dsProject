@@ -171,7 +171,7 @@ function handleIncomingMessage(message) {
 
 function sendMessage(message) {
     const jsonMessage = JSON.stringify({ text: message, clock: lamportClock });
-    neighborsMap.forEach((socket) => socket.write(jsonMessage + '::'));
+    neighborsMap.forEach((socket) => socket.write('::' + jsonMessage));
 }
 
 function printMessages() {
