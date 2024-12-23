@@ -113,20 +113,17 @@ async function setupPersistentSocket(peerIp, peerPort, retryDelay = 2000, maxRet
  * @param {string} message - The message containing peer data.
  */
 function handleIncomingMessage(message) {
-    try {
-        const { text, clock } = JSON.parse(message);
-        // Adjust clock.
-        lamportClock = Math.max(lamportClock, clock) + 1;
-        if (text !== 'ACK') {
-            // Send ACK to all.
-            sendMessage('ACK');
-        }
-        // Add message to queue.
-        queue.enqueue({text, clock});
-        printMessages();
-    } catch (error) {
-        console.error('ERROR: ', error.message);
+    console.log('AA')
+    const { text, clock } = JSON.parse(message);
+    // Adjust clock.
+    lamportClock = Math.max(lamportClock, clock) + 1;
+    if (text !== 'ACK') {
+        // Send ACK to all.
+        sendMessage('ACK');
     }
+    // Add message to queue.
+    queue.enqueue({text, clock});
+    printMessages();
 }
 
 function sendMessage(message) {
