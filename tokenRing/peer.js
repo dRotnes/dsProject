@@ -192,7 +192,7 @@ process.on('SIGTERM', initiateShutdown);
 
 // Main execution
 if (process.argv.length < 4) {
-    console.error('Usage: node yourScript.js <nextPeerIp> <serverIp>');
+    console.error('Usage: node peer.js <nextPeerIp> <serverIp>');
     process.exit(1);
 }
 
