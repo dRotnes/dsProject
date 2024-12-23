@@ -1,8 +1,15 @@
 const net = require('net');
 const process = require('process');
 const os = require('os');
+const { PriorityQueue } = require('@datastructures-js/priority-queue');
 
+const lambda = 1 / 60;
 let neighborsMap = new Map();
+let lamportClock = 0;
+const queue = new PriorityQueue((a, b) => {
+    return a.clock < b.clock ? -1 : 1;
+  }
+);
 
 /**
  * Sets up a server to accept incoming peer connections.
@@ -102,6 +109,43 @@ async function setupPersistentSocket(peerIp, peerPort, retryDelay = 2000, maxRet
 }
 
 /**
+ * Handles incoming messages to register peers and update the map.
+ * @param {string} message - The message containing peer data.
+ */
+function handleIncomingMessage(message) {
+    try {
+        const { text, clock } = JSON.parse(message);
+        // Adjust clock.
+        lamportClock = Math.max(lamportClock, clock) + 1;
+        if (text !== 'ACK') {
+            // Send ACK to all.
+            sendMessage('ACK');
+        }
+        // Add message to queue.
+        queue.enqueue({text, clock});
+        printMessages();
+    } catch (error) {
+        console.error('ERROR: ', error.message);
+    }
+}
+
+function sendMessage(message) {
+    const jsonMessage = { text: message, clock: lamportClock }
+    // Send ack to all.
+    neighborsMap.forEach((socket, peerIp) => socket.write(JSON.stringify(jsonMessage)));
+}
+
+function printMessages() {
+    // Print messages if not an ACK.
+    while(queue.size > 0) {
+        const message = queue.dequeue();
+        if (message !== 'ACK') {
+            console.log(message);
+        }
+    }
+}
+
+/**
  * Returns the delay to apply when creating the requests.
  * @param {number} lambda - The lambda to use as guideline.
  * @returns {number}
@@ -109,6 +153,19 @@ async function setupPersistentSocket(peerIp, peerPort, retryDelay = 2000, maxRet
 function getPoissonDelay(lambda) {
     return -Math.log(1.0 - Math.random()) / lambda;
 }
+
+/**
+ * Periodically updates the peer map using Anti-Entropy.
+ */
+function startMessageSending() {
+    const delay = getPoissonDelay(lambda);
+    setTimeout(() => {
+        lamportClock = lamportClock + 1;
+        sendMessage(selfIpAddress);
+        startMessageSending();
+    }, delay * 1000);
+}
+
 
 /**
  * Get the local IP address of the machine.
@@ -138,6 +195,7 @@ const selfIpAddress = getOwnIP();
 
 (async () => {
     server = startPeerServer('0.0.0.0', 4000);
+    // Setup socket to self.
     await setupPersistentSocket(selfIpAddress, 4000);
     // Establish connections to specified peers
     for (const peer of peersIps) {
@@ -148,5 +206,5 @@ const selfIpAddress = getOwnIP();
             console.error(`Failed to connect to peer ${peer}. Continuing without it`);
         }
     }
-    console.log(neighborsMap);
+    startMessageSending();
 })();

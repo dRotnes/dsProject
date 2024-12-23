@@ -19,6 +19,7 @@
   },
   "homepage": "https://github.com/dRotnes/dsProject#readme",
   "dependencies": {
+    "@datastructures-js/priority-queue": "^6.3.1",
     "nodemon": "^3.1.7"
   }
 }
