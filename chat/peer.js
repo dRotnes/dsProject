@@ -205,7 +205,7 @@ function startMessageSending() {
     setTimeout(() => {
         lamportClock += 1;
         const randomWord = wordsArray[Math.floor(Math.random() * wordsArray.length)];
-        sendMessage(randomWord, peerIp);
+        sendMessage(randomWord);
         startMessageSending();
     }, delay * 1000);
 }
