@@ -161,17 +161,9 @@ async function setupPersistentSocket(peerIp, peerPort, retryDelay = 2000, maxRet
  */
 function gracefulShutdown() {
     console.log("Shutting down gracefully...");
-    const shutdownMessage = JSON.stringify({ text: "SHUTDOWN", clock: lamportClock });
-    neighborsMap.forEach((socket, peerIp) => {
-        try {
-            socket.write(shutdownMessage + '\n');
-            socket.end(); // Close the socket connection gracefully
-        } catch (error) {
-            console.error(`Error shutting down connection to ${peerIp}:`, error.message);
-        }
-    });
-    neighborsMap.clear(); // Clear the neighbors map
-    process.exit(0); // Exit the process
+    sendMessage('SHUTDOWN');
+    neighborsMap.clear();
+    process.exit(0);
 }
 
 // Handle incoming shutdown messages
@@ -193,7 +185,12 @@ function handleIncomingMessage(message) {
 
 function sendMessage(message) {
     const jsonMessage = JSON.stringify({ text: message, clock: lamportClock });
-    neighborsMap.forEach((socket) => socket.write(jsonMessage + '\n'));
+    neighborsMap.forEach((socket) => {
+        socket.write(jsonMessage + '\n');
+        if(message === 'SHUTDOWN'){
+            socket.end();
+        }
+    });
 }
 
 function printMessages() {
