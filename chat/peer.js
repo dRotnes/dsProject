@@ -187,12 +187,10 @@ if (process.argv.length < 3) {
     process.exit(1);
 }
 const peersIps = process.argv.slice(2);
-const selfIpAddress = getOwnIP();
 
 (async () => {
     server = startPeerServer('0.0.0.0', 4000);
-    // Setup socket to self.
-    await setupPersistentSocket(selfIpAddress, 4000);
+
     // Establish connections to specified peers
     for (const peer of peersIps) {
         try {
