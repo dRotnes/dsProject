@@ -161,7 +161,7 @@ function startMessageSending() {
     const delay = getPoissonDelay(lambda);
     setTimeout(() => {
         lamportClock = lamportClock + 1;
-        sendMessage(selfIpAddress);
+        sendMessage(Math.random().toString());
         startMessageSending();
     }, delay * 1000);
 }
