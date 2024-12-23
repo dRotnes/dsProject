@@ -11,6 +11,50 @@ const queue = new PriorityQueue((a, b) => {
   }
 );
 
+const basketballTerms = new Set([
+    "Air Ball",
+    "Alley-oop",
+    "Assist",
+    "Backboard",
+    "Backcourt",
+    "Bank Shot",
+    "Baseline",
+    "Bench",
+    "Block",
+    "Bounce Pass",
+    "Box Out",
+    "Charging",
+    "Chest Pass",
+    "Double Dribble",
+    "Dribble",
+    "Dunk",
+    "Fast Break",
+    "Field Goal",
+    "Flagrant Foul",
+    "Free Throw",
+    "Full-Court Press",
+    "Goaltending",
+    "Half-Court",
+    "Inbounds Pass",
+    "Jump Ball",
+    "Layup",
+    "Man-to-Man Defense",
+    "Offense",
+    "Overtime",
+    "Personal Foul",
+    "Pivot",
+    "Rebound",
+    "Screen",
+    "Shot Clock",
+    "Slam Dunk",
+    "Steal",
+    "Technical Foul",
+    "Three-Point Line",
+    "Traveling",
+    "Turnover",
+    "Zone Defense"
+]);
+
 /**
  * Sets up a server to accept incoming peer connections.
  * @param {string} ipAddress - IP address of the current peer.
@@ -157,32 +201,23 @@ function getPoissonDelay(lambda) {
  * Periodically updates the peer map using Anti-Entropy.
  */
 function startMessageSending() {
-    const delay = getPoissonDelay(lambda);
-    setTimeout(() => {
-        lamportClock = lamportClock + 1;
-        sendMessage(Math.random().toString());
-        startMessageSending();
-    }, delay * 1000);
+    const words = Array.from(wordSet); // Convert set to array for indexing
+
+    const sendRandomWord = () => {
+        const delay = getPoissonDelay(lambda);
+        setTimeout(() => {
+            lamportClock += 1; // Increment Lamport clock
+            const randomWord = words[Math.floor(Math.random() * words.length)];
+            neighborsMap.forEach((_, peerIp) => {
+                sendMessage(randomWord, peerIp);
+            });
+            sendRandomWord();
+        }, delay * 1000);
+    };
+
+    sendRandomWord();
 }
 
-
-/**
- * Get the local IP address of the machine.
- * @returns {string | null} The local IP address, or null if not found.
- */
-function getOwnIP() {
-    const networkInterfaces = os.networkInterfaces();
-    for (const interfaceName in networkInterfaces) {
-        const addresses = networkInterfaces[interfaceName];
-        for (const address of addresses) {
-            // Select the first IPv4 address that is not internal (127.0.0.1)
-            if (address.family === 'IPv4' && !address.internal) {
-                return address.address;
-            }
-        }
-    }
-    return null;
-}
 
 // Main Execution
 if (process.argv.length < 3) {
