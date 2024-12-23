@@ -75,9 +75,6 @@ function startPeerServer(ipAddress, port) {
         }
 
         clientSocket.on('data', (data) => {
-            if (data.toString() === 'SHUTDOWN'){
-                initiateShutdown();
-            }
             const messages = data.toString().trim().split('\n');
             messages.forEach((message) => {
                 handleIncomingMessage(message);
@@ -132,9 +129,6 @@ async function setupPersistentSocket(peerIp, peerPort, retryDelay = 2000, maxRet
                 neighborsMap.set(peerIp, socket);
 
                 socket.on('data', (data) => {
-                    if (data.toString() === 'SHUTDOWN'){
-                        initiateShutdown();
-                    }
                     const messages = data.toString().trim().split('\n');
                     messages.forEach((message) => {
                         handleIncomingMessage(message);
@@ -163,13 +157,33 @@ async function setupPersistentSocket(peerIp, peerPort, retryDelay = 2000, maxRet
 }
 
 /**
- * Handles incoming messages to register peers and update the map.
- * @param {string} message - The message containing peer data.
+ * Sends a shutdown message to all peers and closes their sockets.
  */
+function gracefulShutdown() {
+    console.log("Shutting down gracefully...");
+    const shutdownMessage = JSON.stringify({ text: "SHUTDOWN", clock: lamportClock });
+    neighborsMap.forEach((socket, peerIp) => {
+        try {
+            socket.write(shutdownMessage + '\n');
+            socket.end(); // Close the socket connection gracefully
+        } catch (error) {
+            console.error(`Error shutting down connection to ${peerIp}:`, error.message);
+        }
+    });
+    neighborsMap.clear(); // Clear the neighbors map
+    process.exit(0); // Exit the process
+}
+
+// Handle incoming shutdown messages
 function handleIncomingMessage(message) {
     const { text, clock } = JSON.parse(message);
-    // Adjust clock
     lamportClock = Math.max(lamportClock, clock) + 1;
+    
+    if (text === 'SHUTDOWN') {
+        console.log("Received shutdown message from a peer.");
+        process.exit(0);
+    }
+    
     if (text !== 'ACK') {
         sendMessage('ACK'); // Send ACK
     }
@@ -214,34 +228,9 @@ function startMessageSending() {
     }, delay * 1000);
 }
 
-/**
- * Initiates the shutdown process. Sends shutdown command to connected peer.
- */
-function initiateShutdown() {
-    if (shuttingDown) return;
-    shuttingDown = true;
-
-    console.log('Initiating graceful shutdown...');
-    if (peerSocket && !peerSocket.destroyed) {
-        peerSocket.write('SHUTDOWN', () => {
-            console.log('Notified next peer about shutdown.');
-        });
-    }
-
-    if (server) {
-        server.close();
-    }
-
-    setTimeout(() => {
-        console.log('Shutdown complete.');
-        process.exit(0); // Exit the process
-    }, 1000);
-}
-
-
-// Start listening for OS signals for graceful shutdown
-process.on('SIGINT', initiateShutdown);
-process.on('SIGTERM', initiateShutdown);
+// Register signal handlers for graceful shutdown
+process.on('SIGINT', gracefulShutdown);  // Handle Ctrl+C
+process.on('SIGTERM', gracefulShutdown); // Handle termination signals
 
 // Main Execution
 if (process.argv.length < 3) {
