@@ -10,7 +10,7 @@ const queue = new PriorityQueue((a, b) => {
         if (a.clock < b.clock) return -1;
         if (a.clock > b.clock) return 1;
 
-        return a.peerId < b.peerId ? -1 : 1;  
+        return a.peerIp < b.peerIp ? -1 : 1;  
     }
 );
 
@@ -171,7 +171,7 @@ function gracefulShutdown() {
 
 // Handle incoming shutdown messages
 function handleIncomingMessage(message) {
-    const { text, clock, peerId } = JSON.parse(message);
+    const { text, clock, peerIp } = JSON.parse(message);
     lamportClock = Math.max(lamportClock, clock) + 1;
     
     if (text === 'SHUTDOWN') {
@@ -184,7 +184,7 @@ function handleIncomingMessage(message) {
         sendMessage('ACK');
     }
     // Add to queue.
-    queue.enqueue({ text, clock, peerId });
+    queue.enqueue({ text, clock, peerIp });
     printMessages();
 }
 
@@ -201,9 +201,9 @@ function sendMessage(message) {
 function printMessages() {
     // Print messages if not an ACK.
     while(queue.size() > 0) {
-        const { text, peerId } = queue.dequeue();
+        const { text, peerIp } = queue.dequeue();
         if (text !== 'ACK') {
-            console.log(`${peerId}: ${text}`);
+            console.log(`${peerIp}: ${text}`);
         }
     }
 }
