@@ -7,8 +7,11 @@ const lambda = 1;
 let neighborsMap = new Map();
 let lamportClock = 0;
 const queue = new PriorityQueue((a, b) => {
-    return a.clock < b.clock ? -1 : 1;
-  }
+        if (a.clock < b.clock) return -1;
+        if (a.clock > b.clock) return 1;
+
+        return a.peerId < b.peerId ? -1 : 1;  
+    }
 );
 
 const wordsArray = [
@@ -168,7 +171,7 @@ function gracefulShutdown() {
 
 // Handle incoming shutdown messages
 function handleIncomingMessage(message) {
-    const { text, clock } = JSON.parse(message);
+    const { text, clock, peerId } = JSON.parse(message);
     lamportClock = Math.max(lamportClock, clock) + 1;
     
     if (text === 'SHUTDOWN') {
@@ -176,15 +179,17 @@ function handleIncomingMessage(message) {
         process.exit(0);
     }
     
+    // Send Ack if message is not an ack.
     if (text !== 'ACK') {
-        sendMessage('ACK'); // Send ACK
+        sendMessage('ACK');
     }
-    queue.enqueue({ text, clock }); // Add message to queue
+    // Add to queue.
+    queue.enqueue({ text, clock, peerId });
     printMessages();
 }
 
 function sendMessage(message) {
-    const jsonMessage = JSON.stringify({ text: message, clock: lamportClock });
+    const jsonMessage = JSON.stringify({ text: message, clock: lamportClock, peerIp: selfIp });
     neighborsMap.forEach((socket) => {
         socket.write(jsonMessage + '\n');
         if(message === 'SHUTDOWN'){
@@ -196,9 +201,9 @@ function sendMessage(message) {
 function printMessages() {
     // Print messages if not an ACK.
     while(queue.size() > 0) {
-        const { text } = queue.dequeue();
+        const { text, peerId } = queue.dequeue();
         if (text !== 'ACK') {
-            console.log(text);
+            console.log(`${peerId}: ${text}`);
         }
     }
 }
@@ -225,6 +230,24 @@ function startMessageSending() {
     }, delay * 1000);
 }
 
+/**
+ * Get the local IP address of the machine.
+ * @returns {string | null} The local IP address, or null if not found.
+ */
+function getOwnIP() {
+    const networkInterfaces = os.networkInterfaces();
+    for (const interfaceName in networkInterfaces) {
+        const addresses = networkInterfaces[interfaceName];
+        for (const address of addresses) {
+            // Select the first IPv4 address that is not internal (127.0.0.1)
+            if (address.family === 'IPv4' && !address.internal) {
+                return address.address;
+            }
+        }
+    }
+    return null;
+}
+
 // Register signal handlers for graceful shutdown
 process.on('SIGINT', gracefulShutdown);  // Handle Ctrl+C
 process.on('SIGTERM', gracefulShutdown); // Handle termination signals
@@ -235,6 +258,7 @@ if (process.argv.length < 3) {
     process.exit(1);
 }
 const peersIps = process.argv.slice(2);
+const selfIp = getOwnIP();
 
 (async () => {
     server = startPeerServer('0.0.0.0', 4000);
