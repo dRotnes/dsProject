@@ -181,7 +181,6 @@ function handleIncomingMessage(message) {
     }
 
     else if (text === 'ACK') {
-        console.log(message);
         // Increase the ack count for the given message.
         messagesAckMap.set(ackedMessageId, messagesAckMap.get(ackedMessageId) + 1);
     }
