@@ -211,7 +211,7 @@ function printMessages() {
     while(queue.size() > 0) {
         const message = queue.front();
         const messageId = message.peerIp + ':' + message.clock.toString();
-        if (messagesAckMap.get(messageId) === neighborsMap.size()) {
+        if (messagesAckMap.get(messageId) === neighborsMap.size) {
             const { text, peerIp } = queue.dequeue();
             messagesAckMap.delete(messageId);
             console.log(`${peerIp}: ${text}`);
