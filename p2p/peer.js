@@ -214,7 +214,7 @@ function initiateShutdown() {
     }, 1000);
 }
 
-// Start listening for OS signals for graceful shutdown
+// Listen to termination events.
 process.on('SIGINT', initiateShutdown);
 process.on('SIGTERM', initiateShutdown);
 

@@ -1,19 +1,26 @@
 const net = require('net');
-const process = require('process');
 const os = require('os');
+const fs = require('fs');
+const process = require('process');
 const { PriorityQueue } = require('@datastructures-js/priority-queue');
 
+// The Log file path.
+const logFilePath = 'messages.log';
+// The Lambda for the poisson distribution. 1 = 60/60 (60 per minute =  1 per second).
 const lambda = 1;
+// The Lamport Clock.
 let lamportClock = 0;
+// The priprity queue. Orders by clock first and in case of conflict, by the peer ip.
 const queue = new PriorityQueue((a, b) => {
     if (a.clock < b.clock) return -1;
     if (a.clock > b.clock) return 1;
     
     return a.peerIp < b.peerIp ? -1 : 1;  
-}
-);
+});
+// The neighbors map to hold the sockets to use.
 const neighborsMap = new Map();
 
+// The disctionary of words.
 const wordsArray = [
     "Air Ball",
     "Alley-oop",
@@ -169,7 +176,11 @@ function gracefulShutdown() {
     process.exit(0);
 }
 
-// Handle incoming shutdown messages
+/**
+ * Handles incoming messages accordingly, implementing the TOM logic.
+ * 
+ * @param message - The message. 
+ */
 function handleIncomingMessage(message) {
     const { text, clock, peerIp } = JSON.parse(message);
     lamportClock = Math.max(lamportClock, clock) + 1;
@@ -188,6 +199,11 @@ function handleIncomingMessage(message) {
     printMessages();
 }
 
+/**
+ * Sends a message to all peers, including itself. If it's a shutdown message, shuts the socket aswell.
+ * 
+ * @param message - The message,
+ */
 function sendMessage(message) {
     const jsonMessage = JSON.stringify({ text: message, clock: lamportClock, peerIp: selfIp });
     neighborsMap.forEach((socket) => {
@@ -198,13 +214,18 @@ function sendMessage(message) {
     });
 }
 
+/**
+ * Prints the messages and logs it into a file.
+ */
 function printMessages() {
+    // While the queue holds something from every peer.
     while (peersIps.every((peer) => queue.toArray().some((message) => message.peerIp === peer))) {
-        // Print messages if not an ACK.
         const { text, peerIp } = queue.front();
-
+        // Print messages if not an ACK.
         if (text !== 'ACK') {
-            console.log(`${peerIp}: ${text}`);
+            const logMessage = `${peerIp}: ${text}`;
+            console.log(logMessage);
+            writeMessageToFile(logMessage);
         }
         queue.pop();
     }
@@ -248,6 +269,15 @@ function getOwnIP() {
         }
     }
     return null;
+}
+
+/** 
+ * Function to log messages in a file 
+ * @param message - The message 
+ */
+function writeMessageToFile(message) {
+    // Append the message to the log file.
+    fs.appendFileSync(logFilePath, message + '\n', 'utf8');
 }
 
 // Register signal handlers for graceful shutdown
