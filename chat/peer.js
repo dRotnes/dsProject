@@ -199,18 +199,14 @@ function sendMessage(message) {
 }
 
 function printMessages() {
-    while (queue.size() > 0) {
+    while (peersIps.every((peer) => queue.toArray().some((message) => message.peerIp === peer))) {
         // Print messages if not an ACK.
         const { text, peerIp } = queue.front();
-        if (peersIps.every((peer) => queue.toArray().some((message) => message.peerIp === peer))) {
-            if (text !== 'ACK') {
-                console.log(`${peerIp}: ${text}`);
-            }
-            queue.pop();
+
+        if (text !== 'ACK') {
+            console.log(`${peerIp}: ${text}`);
         }
-        else {
-            break;
-        }
+        queue.pop();
     }
 }
 
