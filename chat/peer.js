@@ -4,8 +4,6 @@ const fs = require('fs');
 const process = require('process');
 const { PriorityQueue } = require('@datastructures-js/priority-queue');
 
-// The Log file path.
-const logFilePath = 'messages.log';
 // The Lambda for the poisson distribution. 1 = 60/60 (60 per minute =  1 per second).
 const lambda = 1;
 // The Lamport Clock.
@@ -277,7 +275,7 @@ function getOwnIP() {
  */
 function writeMessageToFile(message) {
     // Append the message to the log file.
-    fs.appendFileSync(logFilePath, message + '\n', 'utf8');
+    fs.appendFileSync(`messages_${selfIp}.log`, message + '\n', 'utf8');
 }
 
 // Register signal handlers for graceful shutdown
