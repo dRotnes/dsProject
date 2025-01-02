@@ -13,7 +13,6 @@ const queue = new PriorityQueue((a, b) => {
 }
 );
 const neighborsMap = new Map();
-const messagesAckMap = new Map();
 
 const wordsArray = [
     "Air Ball",
@@ -172,7 +171,7 @@ function gracefulShutdown() {
 
 // Handle incoming shutdown messages
 function handleIncomingMessage(message) {
-    const { text, clock, peerIp, ackedMessageId } = JSON.parse(message);
+    const { text, clock, peerIp } = JSON.parse(message);
     lamportClock = Math.max(lamportClock, clock) + 1;
     
     if (text === 'SHUTDOWN') {
@@ -180,24 +179,17 @@ function handleIncomingMessage(message) {
         process.exit(0);
     }
 
-    else if (text === 'ACK') {
-        // Increase the ack count for the given message.
-        messagesAckMap.set(ackedMessageId, messagesAckMap.get(ackedMessageId) + 1);
-    }
-    else {
-        const ackedMessageId = peerIp + ':' + clock.toString(); 
-        // Add to map (key = <peerIp>:<clock>).
-        messagesAckMap.set(ackedMessageId, 0);
+    if (text !== 'ACK') {
         // Send Ack if message is not an ack.
-        sendMessage('ACK', ackedMessageId);
+        sendMessage('ACK');
     }
     // Add to queue.
     queue.enqueue({ text, clock, peerIp });
     printMessages();
 }
 
-function sendMessage(message, ackedMessageId=null) {
-    const jsonMessage = JSON.stringify({ text: message, clock: lamportClock, peerIp: selfIp, ackedMessageId });
+function sendMessage(message) {
+    const jsonMessage = JSON.stringify({ text: message, clock: lamportClock, peerIp: selfIp });
     neighborsMap.forEach((socket) => {
         socket.write(jsonMessage + '\n');
         if(message === 'SHUTDOWN'){
@@ -209,15 +201,14 @@ function sendMessage(message, ackedMessageId=null) {
 function printMessages() {
     while (queue.size() > 0) {
         // Print messages if not an ACK.
-        const message = queue.front();
-        const messageId = message.peerIp + ':' + message.clock.toString();
-        if (message.text === 'ACK') { continue; }
-        else if (messagesAckMap.get(messageId) === neighborsMap.size) {
-            const { text, peerIp } = queue.dequeue();
-            messagesAckMap.delete(messageId);
-            console.log(`${peerIp}: ${text}`);
+        const { text, peerIp } = queue.front();
+        if (peersIps.every((peer) => queue.toArray().some((message) => message.peerIp === peer))) {
+            if (type !== 'ACK') {
+                console.log(`${peerIp}: ${text}`);
+            }
+            queue.pop();
         }
-        else { 
+        else {
             break;
         }
     }
