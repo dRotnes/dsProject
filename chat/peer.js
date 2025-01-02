@@ -203,7 +203,7 @@ function printMessages() {
         // Print messages if not an ACK.
         const { text, peerIp } = queue.front();
         if (peersIps.every((peer) => queue.toArray().some((message) => message.peerIp === peer))) {
-            if (type !== 'ACK') {
+            if (text !== 'ACK') {
                 console.log(`${peerIp}: ${text}`);
             }
             queue.pop();
