@@ -4,15 +4,16 @@ const os = require('os');
 const { PriorityQueue } = require('@datastructures-js/priority-queue');
 
 const lambda = 1;
-let neighborsMap = new Map();
 let lamportClock = 0;
 const queue = new PriorityQueue((a, b) => {
-        if (a.clock < b.clock) return -1;
-        if (a.clock > b.clock) return 1;
-
-        return a.peerIp < b.peerIp ? -1 : 1;  
-    }
+    if (a.clock < b.clock) return -1;
+    if (a.clock > b.clock) return 1;
+    
+    return a.peerIp < b.peerIp ? -1 : 1;  
+}
 );
+const neighborsMap = new Map();
+const messagesAckMap = new Map();
 
 const wordsArray = [
     "Air Ball",
@@ -171,25 +172,32 @@ function gracefulShutdown() {
 
 // Handle incoming shutdown messages
 function handleIncomingMessage(message) {
-    const { text, clock, peerIp } = JSON.parse(message);
+    const { text, clock, peerIp, ackedMessageId } = JSON.parse(message);
     lamportClock = Math.max(lamportClock, clock) + 1;
     
     if (text === 'SHUTDOWN') {
         console.log("Received shutdown message from a peer.");
         process.exit(0);
     }
-    
-    // Send Ack if message is not an ack.
-    if (text !== 'ACK') {
-        sendMessage('ACK');
+
+    else if (text === 'ACK') {
+        // Increase the ack count for the given message.
+        messagesAckMap.set(ackedMessageId, messagesAckMap.get(ackedMessageId) + 1);
     }
-    // Add to queue.
-    queue.enqueue({ text, clock, peerIp });
+    else {
+        const ackedMessageId = peerIp + ':' + clock.toString(); 
+        // Add to map (key = <peerIp>:<clock>).
+        messagesAckMap.set(ackedMessageId, 0);
+        // Send Ack if message is not an ack.
+        sendMessage('ACK', ackedMessageId);
+        // Add to queue.
+        queue.enqueue({ text, clock, peerIp });
+    }
     printMessages();
 }
 
-function sendMessage(message) {
-    const jsonMessage = JSON.stringify({ text: message, clock: lamportClock, peerIp: selfIp });
+function sendMessage(message, ackedMessageId=null) {
+    const jsonMessage = JSON.stringify({ text: message, clock: lamportClock, peerIp: selfIp, ackedMessageId });
     neighborsMap.forEach((socket) => {
         socket.write(jsonMessage + '\n');
         if(message === 'SHUTDOWN'){
@@ -201,8 +209,11 @@ function sendMessage(message) {
 function printMessages() {
     // Print messages if not an ACK.
     while(queue.size() > 0) {
-        const { text, peerIp } = queue.dequeue();
-        if (text !== 'ACK') {
+        const message = queue.front();
+        const messageId = message.peerIp + ':' + message.clock.toString();
+        if (messagesAckMap.get(messageId) === neighborsMap.size()) {
+            const { text, peerIp } = queue.dequeue();
+            messagesAckMap.delete(messageId);
             console.log(`${peerIp}: ${text}`);
         }
     }
