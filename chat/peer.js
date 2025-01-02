@@ -207,13 +207,18 @@ function sendMessage(message, ackedMessageId=null) {
 }
 
 function printMessages() {
-    // Print messages if not an ACK.
-    const message = queue.front();
-    const messageId = message.peerIp + ':' + message.clock.toString();
-    if (messagesAckMap.get(messageId) === neighborsMap.size) {
-        const { text, peerIp } = queue.dequeue();
-        messagesAckMap.delete(messageId);
-        console.log(`${peerIp}: ${text}`);
+    while (queue.size > 0) {
+        // Print messages if not an ACK.
+        const message = queue.front();
+        const messageId = message.peerIp + ':' + message.clock.toString();
+        if (messagesAckMap.get(messageId) === neighborsMap.size) {
+            const { text, peerIp } = queue.dequeue();
+            messagesAckMap.delete(messageId);
+            console.log(`${peerIp}: ${text}`);
+        }
+        else { 
+            break;
+        }
     }
 }
 
