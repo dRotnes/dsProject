@@ -207,7 +207,7 @@ function sendMessage(message, ackedMessageId=null) {
 }
 
 function printMessages() {
-    while (queue.size > 0) {
+    while (queue.size() > 0) {
         // Print messages if not an ACK.
         const message = queue.front();
         const messageId = message.peerIp + ':' + message.clock.toString();
