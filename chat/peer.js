@@ -190,9 +190,9 @@ function handleIncomingMessage(message) {
         messagesAckMap.set(ackedMessageId, 0);
         // Send Ack if message is not an ack.
         sendMessage('ACK', ackedMessageId);
-        // Add to queue.
-        queue.enqueue({ text, clock, peerIp });
     }
+    // Add to queue.
+    queue.enqueue({ text, clock, peerIp });
     printMessages();
 }
 
@@ -211,7 +211,8 @@ function printMessages() {
         // Print messages if not an ACK.
         const message = queue.front();
         const messageId = message.peerIp + ':' + message.clock.toString();
-        if (messagesAckMap.get(messageId) === neighborsMap.size) {
+        if (message.text === 'ACK') { continue; }
+        else if (messagesAckMap.get(messageId) === neighborsMap.size) {
             const { text, peerIp } = queue.dequeue();
             messagesAckMap.delete(messageId);
             console.log(`${peerIp}: ${text}`);
