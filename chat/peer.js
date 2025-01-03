@@ -5,7 +5,7 @@ const process = require('process');
 const { PriorityQueue } = require('@datastructures-js/priority-queue');
 
 // The Lambda for the poisson distribution. 1 = 60/60 (60 per minute =  1 per second).
-const lambda = 4 / 60;
+const lambda = 1;
 // The Lamport Clock.
 let lamportClock = 0;
 // The priprity queue. Orders by clock first and in case of conflict, by the peer ip.
@@ -205,7 +205,6 @@ function handleIncomingMessage(message) {
 function sendMessage(message) {
     const jsonMessage = JSON.stringify({ text: message, clock: lamportClock, peerIp: selfIp });
     neighborsMap.forEach((socket) => {
-        console.log(socket.remoteAddress, socket.remotePort);
         socket.write(jsonMessage + '\n');
         if(message === 'SHUTDOWN'){
             socket.end();
