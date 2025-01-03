@@ -5,7 +5,7 @@ const process = require('process');
 const { PriorityQueue } = require('@datastructures-js/priority-queue');
 
 // The Lambda for the poisson distribution. 1 = 60/60 (60 per minute =  1 per second).
-const lambda = 1;
+const lambda = 4 / 60;
 // The Lamport Clock.
 let lamportClock = 0;
 // The priprity queue. Orders by clock first and in case of conflict, by the peer ip.
@@ -71,7 +71,6 @@ const wordsArray = [
 function startPeerServer(ipAddress, port) {
     const server = net.createServer((clientSocket) => {
         const connectionIp = clientSocket.remoteAddress;
-        console.log(clientSocket.remotePort);
 
         // Check if a connection to this peer already exists. If not, add this socket to the neightbor Map
         if (!neighborsMap.has(connectionIp)) {
@@ -136,7 +135,6 @@ async function setupPersistentSocket(peerIp, peerPort, retryDelay = 2000, maxRet
             socket.connect(peerPort, peerIp, () => {
                 console.log(`ADDED NEIGHBOR: ${peerIp}`);
                 neighborsMap.set(peerIp, socket);
-                console.log(clientSocket.peerPort);
 
                 socket.on('data', (data) => {
                     const messages = data.toString().trim().split('\n');
@@ -207,6 +205,7 @@ function handleIncomingMessage(message) {
 function sendMessage(message) {
     const jsonMessage = JSON.stringify({ text: message, clock: lamportClock, peerIp: selfIp });
     neighborsMap.forEach((socket) => {
+        console.log(socekt.remoteAddress, socekt.remotePort);
         socket.write(jsonMessage + '\n');
         if(message === 'SHUTDOWN'){
             socket.end();
