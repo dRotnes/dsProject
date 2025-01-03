@@ -71,6 +71,7 @@ const wordsArray = [
 function startPeerServer(ipAddress, port) {
     const server = net.createServer((clientSocket) => {
         const connectionIp = clientSocket.remoteAddress;
+        console.log(clientSocket.remotePort);
 
         // Check if a connection to this peer already exists. If not, add this socket to the neightbor Map
         if (!neighborsMap.has(connectionIp)) {
@@ -135,6 +136,7 @@ async function setupPersistentSocket(peerIp, peerPort, retryDelay = 2000, maxRet
             socket.connect(peerPort, peerIp, () => {
                 console.log(`ADDED NEIGHBOR: ${peerIp}`);
                 neighborsMap.set(peerIp, socket);
+                console.log(clientSocket.peerPort);
 
                 socket.on('data', (data) => {
                     const messages = data.toString().trim().split('\n');
