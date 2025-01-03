@@ -205,7 +205,7 @@ function handleIncomingMessage(message) {
 function sendMessage(message) {
     const jsonMessage = JSON.stringify({ text: message, clock: lamportClock, peerIp: selfIp });
     neighborsMap.forEach((socket) => {
-        console.log(socekt.remoteAddress, socekt.remotePort);
+        console.log(socket.remoteAddress, socket.remotePort);
         socket.write(jsonMessage + '\n');
         if(message === 'SHUTDOWN'){
             socket.end();
