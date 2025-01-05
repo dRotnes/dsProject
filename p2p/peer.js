@@ -143,8 +143,12 @@ function disseminatePeerMap() {
     });
 
     const message = JSON.stringify(validEntries);
-    // Send it to every peer connected.
-    neighborsMap.forEach((socket, peerIp) => socket.write(message));
+
+    // Send it to a random peer connected.
+    const peers = Array.from(neighborsMap.values());
+    const randomPeer = peers[Math.floor(Math.random() * peers.length)];
+    
+    randomPeer.write(message);
 }
 
 /**
