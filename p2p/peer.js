@@ -35,7 +35,7 @@ function startPeerServer(ipAddress, port) {
         clientSocket.on('data', (data) => {
             const messages = data.toString().trim().split('\n');
             messages.forEach((message) => (
-                handleIncomingMessage(socket.remoteAddress, message)
+                handleIncomingMessage(connectionIp, message)
             ));
         });
 
@@ -89,7 +89,7 @@ async function setupPersistentSocket(peerIp, peerPort, retryDelay = 2000, maxRet
                 socket.on('data', (data) => {
                     const messages = data.toString().trim().split('\n');
                     messages.forEach((message) => (
-                        handleIncomingMessage(socket.remoteAddress, message)
+                        handleIncomingMessage(peerIp, message)
                     ));
                 });
 
