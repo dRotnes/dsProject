@@ -33,8 +33,10 @@ function startPeerServer(ipAddress, port) {
         }
 
         clientSocket.on('data', (data) => {
-            const message = data.toString().trim();
-            handleIncomingMessage(message);
+            const messages = data.toString().trim().split('\n');
+            messages.forEach((message) => (
+                handleIncomingMessage(socket.remoteAddress, message)
+            ));
         });
 
         clientSocket.on('error', (err) => {
@@ -85,8 +87,10 @@ async function setupPersistentSocket(peerIp, peerPort, retryDelay = 2000, maxRet
                 neighborsMap.set(peerIp, socket);
 
                 socket.on('data', (data) => {
-                    const message = data.toString().trim();
-                    handleIncomingMessage(message);
+                    const messages = data.toString().trim().split('\n');
+                    messages.forEach((message) => (
+                        handleIncomingMessage(socket.remoteAddress, message)
+                    ));
                 });
 
                 socket.on('error', (err) => {
@@ -114,16 +118,21 @@ async function setupPersistentSocket(peerIp, peerPort, retryDelay = 2000, maxRet
  * Handles incoming messages to register peers and update the map.
  * @param {string} message - The message containing peer data.
  */
-function handleIncomingMessage(message) {
+function handleIncomingMessage(peerIp, message) {
     try {
-        const receivedData = JSON.parse(message);
-        receivedData.forEach(([peerIp, timestamp]) => {
-            // Update the map only if the new timestamp is more recent.
-            peerMap.set(peerIp.toString(), Math.max(peerMap.get(peerIp) || 0, timestamp));
-        });
-        // Delete the expired peers.
-        deleteExpiredPeers();
-        console.log(`\nUPDATED NETWORK: ${peerMap.size} TOTAL NODES`);
+        if (message === 'PULL') {
+            sendMapToPeer(neighborsMap.get(peerIp.toString()));
+        }
+        else {
+            const receivedData = JSON.parse(message);
+            receivedData.forEach(([peerIp, timestamp]) => {
+                // Update the map only if the new timestamp is more recent.
+                peerMap.set(peerIp.toString(), Math.max(peerMap.get(peerIp) || 0, timestamp));
+            });
+            // Delete the expired peers.
+            deleteExpiredPeers();
+            console.log(`\nUPDATED NETWORK: ${peerMap.size} TOTAL NODES`);
+        }
     } catch (error) {
         console.error('ERROR: ', error.message);
     }
@@ -133,22 +142,26 @@ function handleIncomingMessage(message) {
  * Disseminates the current peer map to all connected peers.
  */
 function disseminatePeerMap() {
+    // Select random peer.
+    const peers = Array.from(neighborsMap.values());
+    const randomPeer = peers[Math.floor(Math.random() * peers.length)];
+    // Send message to peer.
+    sendMapToPeer(randomPeer);
+    randomPeer.write('PULL');
+}
+
+function sendMapToPeer(peer) {
+
     // Set your own entry.
     peerMap.set(selfIpAddress, Date.now());
-    // Delete the expired peers.
-    deleteExpiredPeers();
+    
     const validEntries = Array.from(peerMap.entries()).filter(([_, timestamp]) => {
         // Filter expired entries
         return Date.now() - timestamp <= entryTTL;
     });
 
-    const message = JSON.stringify(validEntries);
-
-    // Send it to a random peer connected.
-    const peers = Array.from(neighborsMap.values());
-    const randomPeer = peers[Math.floor(Math.random() * peers.length)];
-    
-    randomPeer.write(message);
+    const message = JSON.stringify(validEntries + '\n');
+    peer.write(message); 
 }
 
 /**
