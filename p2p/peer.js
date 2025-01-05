@@ -131,7 +131,7 @@ function handleIncomingMessage(peerIp, message) {
             });
             // Delete the expired peers.
             deleteExpiredPeers();
-            console.log(`\nUPDATED NETWORK: ${peerMap.size} TOTAL NODES`);
+            console.log(`\nRECEIVED INFO FROM ${peerIp}: ${peerMap.size} total peers`);
         }
     } catch (error) {
         console.error('ERROR: ', error.message);
@@ -151,7 +151,7 @@ function disseminatePeerMap() {
 }
 
 function sendMapToPeer(peer) {
-
+    
     // Set your own entry.
     peerMap.set(selfIpAddress, Date.now());
     
@@ -160,6 +160,8 @@ function sendMapToPeer(peer) {
         return Date.now() - timestamp <= entryTTL;
     });
 
+    console.log(`\nDISSEMINATING NETWORK: ${validEntries.length} total peers`);
+    
     const message = JSON.stringify(validEntries);
     peer.write(message); 
 }
@@ -171,7 +173,6 @@ function startAntiEntropy() {
     const delay = getPoissonDelay(lambda);
     setTimeout(() => {
         disseminatePeerMap();
-        console.log(`\nDISSEMINATING NETWORK: ${peerMap.size} TOTAL PEERS`);
         startAntiEntropy();
     }, delay * 1000);
 }
