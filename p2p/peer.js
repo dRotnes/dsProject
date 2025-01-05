@@ -148,7 +148,7 @@ function disseminatePeerMap() {
     const randomPeer = peers[Math.floor(Math.random() * peers.length)];
     // Send message to peer.
     sendMapToPeer(randomPeer);
-    randomPeer.write('PULL');
+    randomPeer.write('\nPULL');
 }
 
 function sendMapToPeer(peer) {
@@ -161,7 +161,7 @@ function sendMapToPeer(peer) {
         return Date.now() - timestamp <= entryTTL;
     });
 
-    const message = JSON.stringify(validEntries + '\n');
+    const message = JSON.stringify(validEntries);
     peer.write(message); 
 }
 
