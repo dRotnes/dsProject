@@ -124,6 +124,7 @@ function handleIncomingMessage(peerIp, message) {
             sendMapToPeer(neighborsMap.get(peerIp.toString()));
         }
         else {
+            console.log(message)
             const receivedData = JSON.parse(message);
             receivedData.forEach(([peerIp, timestamp]) => {
                 // Update the map only if the new timestamp is more recent.
