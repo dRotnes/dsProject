@@ -151,19 +151,22 @@ function disseminatePeerMap() {
 }
 
 function sendMapToPeer(peer) {
+    if(peer) {
+        // Set your own entry.
+        peerMap.set(selfIpAddress, Date.now());
+        
+        const validEntries = Array.from(peerMap.entries()).filter(([_, timestamp]) => {
+            // Filter expired entries
+            return Date.now() - timestamp <= entryTTL;
+        });
     
-    // Set your own entry.
-    peerMap.set(selfIpAddress, Date.now());
+        console.log(`\nDISSEMINATING NETWORK: ${validEntries.length} total peers`);
+        
+        const message = JSON.stringify(validEntries);
+        peer.write(message);
+    }
+    return;
     
-    const validEntries = Array.from(peerMap.entries()).filter(([_, timestamp]) => {
-        // Filter expired entries
-        return Date.now() - timestamp <= entryTTL;
-    });
-
-    console.log(`\nDISSEMINATING NETWORK: ${validEntries.length} total peers`);
-    
-    const message = JSON.stringify(validEntries);
-    peer.write(message); 
 }
 
 /**
